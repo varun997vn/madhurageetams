@@ -1,0 +1,54 @@
+{
+ "_comment": "Interop contract between build/mg/crypto.py and web/src/lib/crypto.ts. The password is a throwaway test value, NOT the site password. Regenerate with build/tools/gen_crypto_vectors.py.",
+ "password": "correct horse battery staple 42",
+ "salt": "AAECAwQFBgcICQoLDA0ODw==",
+ "iterations": 1000,
+ "keyLen": 256,
+ "derivedKey": "LZNLwurOhPDJYInqjBvc+8o7Qdy+uiLRp4SXeWwd5ec=",
+ "kcv": "2f+oN9x7/fI=",
+ "container": {
+  "magic": "MG01",
+  "version": 1,
+  "headerLen": 20,
+  "ivOffset": 8,
+  "ivLen": 12,
+  "flagGzip": 1
+ },
+ "samples": [
+  {
+   "name": "core",
+   "plaintext": "{\"hello\":\"world\"}",
+   "gzipped": false,
+   "iv": "fFO1F9vXfFf9/b0W",
+   "blob": "TUcwMQEAAAB8U7UX29d8V/39vRZJyJZj2H0rl6eDACw2dt0HYp1X8kiWlaV7sGj1GXz4JyQ="
+  },
+  {
+   "name": "index",
+   "plaintext": "{\"tokens\":[\"rama\",\"krisna\"],\"postings\":[[0,17],[1,33]]}",
+   "gzipped": true,
+   "iv": "ZSPWQssa3/I+PUbp",
+   "blob": "TUcwMQEBAABlI9ZCyxrf8j49RunXVjnuKBsLmXmbTTy1z8sFYs51ua5aXeRclUo3Qhu3ZRtS5mHN8wyUYuVKmrOyxCm7tyGriGcu4A+Gj2gMG/EHAAvMl/2pSXmKVrSRCO2NuSXwPH6BPo12oA=="
+  },
+  {
+   "name": "lyrics-00",
+   "plaintext": "{\"ids\":[5,8],\"lyrics\":[\"line one\",\"line two\"]}",
+   "gzipped": true,
+   "iv": "AKYkxXaC/sve3JvE",
+   "blob": "TUcwMQEBAAAApiTFdoL+y97cm8SGLonUy25HXRRN8WhiMGMDHVW+fujPHTvwd+OjODjkiOqSHg688sAkci2UE4K3oQkWRkeVm6q3/mDcLWZhCnQmL2uI+zqGhTxZjUw="
+  },
+  {
+   "name": "empty",
+   "plaintext": "",
+   "gzipped": false,
+   "iv": "azfixXuYYSxTlNi/",
+   "blob": "TUcwMQEAAABrN+LFe5hhLFOU2L9wTXBgNLUY0REBWw2z6/ZH"
+  },
+  {
+   "name": "unicode",
+   "plaintext": "{\"t\":\"kriShNA rAdhE gOvinda \u2014 \u0965\"}",
+   "gzipped": true,
+   "iv": "Y9WIQKqa6vCtuoXn",
+   "blob": "TUcwMQEBAABj1YhAqprq8K26heff2YZGjgv+GrsomVcYpKTRi5LVuow9Z9Fk46ykCgS7WA08SppCarFLt4sNkGnWWA1Fp+BQR+6AQQi0LZvJiGYO4oUh3U/P6zAa"
+  }
+ ]
+}

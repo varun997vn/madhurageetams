@@ -1,0 +1,17 @@
+[project]
+name = "madhurageetam-build"
+version = "1.0.0"
+description = "Offline pipeline: Madhurageetam master PDF -> encrypted static-site data bundles"
+requires-python = ">=3.11"
+dependencies = [
+    "pypdf>=6.0",
+    "PyYAML>=6.0",
+    "cryptography>=41.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

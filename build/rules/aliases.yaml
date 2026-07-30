@@ -1,0 +1,84 @@
+# Canonical spellings for facet values, plus query-side synonym expansion.
+#
+# Matching is by folded key (mg.fold.fold_key), so pure casing/diacritic variants
+# ("Kambhoji" vs "kAmbhOji", "Mohanam" vs "mOhanam") merge automatically and need no
+# entry here — 57 ragam spelling pairs collapse for free. Only list a value when
+# folding alone cannot bridge it.
+
+# --- Thalam -------------------------------------------------------------------------
+# The document writes thalam only inside the lyric body's "rAgam: X thALam: Y" header,
+# with no controlled vocabulary. 58 raw spellings collapse to these. Compound forms that
+# name a gati rather than a different thalam (Adi thisra nadai) map to their base thalam,
+# because a user filtering for "Adi" expects those.
+# Write variants the way the source spells them (spaces and all), not as pre-folded
+# keys: folding is applied to these entries, and folding a key that already had its
+# spaces removed can merge vowels across the old word boundary
+# ("tisra adi" -> "tisraadi", but re-folding "tisraadi" gives "tisradi" and never matches).
+thalam:
+  Adi:
+    - Adi
+    - thishra Adi
+    - thisra Adi
+    - thishram Adi
+    - thisram Adi
+    - Adi thishram
+    - Adi thisram
+    - Adi thishra naDai
+    - Adi thisra naDai
+    - Adi thisranaDai
+    - "Adi (kaNNan varuginDra"   # unclosed parenthetical in the source
+  Chapu: [chApu]
+  "Misra Chapu": [mishra chApu, mishrachApu, mishra]
+  "Khanda Chapu": [khaNDa chApu, khaNDachApu]
+  Rupakam: [rUpakam, khaNDa rUpakam]
+  Triputa: [tripuTa, tripuTai, thishra tripuTa, khaNDa tripuTa]
+  Ata: [aTa, khaNDa aTa]
+  Jhampa: [jampA, jampa, jampai, jhampA, jhampa, jhampai, jambai]
+  Deshadi: [dEshAdi]
+  Ekam:
+    [Ekam, Eka, thishra Eka, thisra Eka, thishra Ekam, thisra Ekam,
+     khaNDa Ekam, chathurasha Eka]
+  "Tisra Laghu": [thisralaghu, thisra laghu, thishralaghu]
+  "Tisra Nadai": [thisra naDai, thishranaDai, thisra naDai]
+  Tisram: [thishram, thiShram, thisram]
+  Matta: [maTTa, maTTe]
+  Mathyam: [maThyam, khaNDa madhyam, sangIrNa madhyam]
+  Dhruvam: [dhruvam, khaNDa dhruva]
+  Ashta: [aShTa]
+  Trividi: [triviDi]
+  Dhavalam: [dhavaLam]
+
+# --- Ragam --------------------------------------------------------------------------
+# Two names for the same ragam. Everything else is left as the corpus spells it (with the
+# most frequent spelling winning within a folded group).
+ragam:
+  Abheri: [Bimblas, bImbLAs]   # "Abheri / Bimblas" is one ragam under two names
+  Kanada: [Kannada, kAnaDA]    # the ragam, not the language
+
+# --- Query-side synonyms -------------------------------------------------------------
+# Expanded only when a user types them; never applied to the corpus. These are the cases
+# folding genuinely cannot reach, mostly elided vowels and alternate regional names.
+query_synonyms:
+  krsna: [krishna]
+  krushna: [krishna]
+  tulsidas: [thulasidas]
+  hanuman: [anjaneya]
+  anjaneyar: [anjaneya]
+  vitthal: [vittala]
+  panduranga: [vittala]
+  pandurangan: [vittala]
+  venkateshwara: [srinivasa]
+  balaji: [srinivasa]
+  perumal: [narayana]
+  thirumal: [narayana]
+  janmashtami: [gokulashtami]
+  gokulashtami: [janmashtami]
+  ramnavami: [ramanavami]
+  gurupurnima: [gurupoornima]
+  deepavali: [diwali]
+  diwali: [deepavali]
+  holi: [dolotsavam]
+  pongal: [sankranti]
+  bhajan: [bhajana]
+  kirtan: [kirtana]
+  keerthanai: [kirtana]

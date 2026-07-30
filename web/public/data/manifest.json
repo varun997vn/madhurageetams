@@ -1,0 +1,257 @@
+{
+  "v": 1,
+  "built": "2026-07-30",
+  "revision": "11f19a667aaa",
+  "corpus": {
+    "songs": 7898
+  },
+  "kdf": {
+    "alg": "PBKDF2-SHA256",
+    "iterations": 600000,
+    "salt": "1YxrnAOZixCT2+VlBdMLAg==",
+    "keyLen": 256
+  },
+  "cipher": "AES-256-GCM",
+  "container": "MG01",
+  "kcv": "sYEOdbFGKsU=",
+  "shards": [
+    {
+      "name": "core",
+      "url": "data/core.enc",
+      "bytes": 225201,
+      "sha256": "86e636d17f4b9795c147fa0cf4f3f2f40f6f177ed1a66ce05c04650482852815",
+      "plainSha256": "3bb6c6130f35b05bd4f12ef3cb1287747581f65098338d5a540fe90713235f43"
+    },
+    {
+      "name": "index",
+      "url": "data/index.enc",
+      "bytes": 2014275,
+      "sha256": "5a0bd2cbdad8360761acf61b906c2902e077afd0ae19c239602f8bc924abf755",
+      "plainSha256": "26e5445d2c9b0cec9f71b1af24f5c48337caddfd9f3815f0e12efc4d5432bd53"
+    },
+    {
+      "name": "lyrics-00",
+      "url": "data/lyrics-00.enc",
+      "bytes": 43712,
+      "sha256": "0ee4765014a231bee931f078e06c7c453f898927ceb90861cea54ea53d95b44a",
+      "plainSha256": "91e0b78fa7cd2980d64baf62e5651b6bbb1d600c87194c14c9246efd0371523f"
+    },
+    {
+      "name": "lyrics-01",
+      "url": "data/lyrics-01.enc",
+      "bytes": 54481,
+      "sha256": "2038d49017369b544bcfe3c1b1a6b6a91907c042837c6c2b290acfd120b64e2d",
+      "plainSha256": "4ac5743b775e493ea5f7651d00870345443b30c0b37c5379b3462a50660beb24"
+    },
+    {
+      "name": "lyrics-02",
+      "url": "data/lyrics-02.enc",
+      "bytes": 41041,
+      "sha256": "c8411769c7cae2163d39a70e05d06e9ba837b0584922c997bb4fef1ab3f3fe2a",
+      "plainSha256": "1bd6b21036169c7723f59fb8326d3f4da03b4a39e67ce984f06eb17de00b5c65"
+    },
+    {
+      "name": "lyrics-03",
+      "url": "data/lyrics-03.enc",
+      "bytes": 51936,
+      "sha256": "8e1f8bb99302ab48457eb96aa336facfc4a6ec59dea9d5bad5088fcc35536943",
+      "plainSha256": "121ba1f244aa25b6752b5ac4075202fe92482362881bcf97079b0847da3c6ca1"
+    },
+    {
+      "name": "lyrics-04",
+      "url": "data/lyrics-04.enc",
+      "bytes": 64295,
+      "sha256": "d7d9b35c67c8e68b2ad34dee46cccee801fee7b0e1643f63e196defd72f64de8",
+      "plainSha256": "82b6f52e4441ba82d487dd4d4d4bd9e8ce74a26ff9e3551466cfe01737c5b6b2"
+    },
+    {
+      "name": "lyrics-05",
+      "url": "data/lyrics-05.enc",
+      "bytes": 55778,
+      "sha256": "6bd46b730cabd240943197f8f5d487de8534ff1c353c62d3b9b659730dcecf45",
+      "plainSha256": "a97cbc170a76f38402ff6426d0c4265a673188ed5d3cfcf6aec519b50bf033cb"
+    },
+    {
+      "name": "lyrics-06",
+      "url": "data/lyrics-06.enc",
+      "bytes": 44783,
+      "sha256": "d93c7bcae6644a5b0b07e04ba1b356ba8c44b73641d2a515610b19b3d7849db1",
+      "plainSha256": "5371fe7e61f394b97ab5e3432932b84cf4b12ec3c35e3d5e55838079c86f7407"
+    },
+    {
+      "name": "lyrics-07",
+      "url": "data/lyrics-07.enc",
+      "bytes": 66155,
+      "sha256": "cebb1bf32d1114b71394aa0a59b0b860c670773974783260dd3b0911ba248590",
+      "plainSha256": "f2b71ed0625818c0c2a733effe362459f8222803c15235cb081ea54f48966cd7"
+    },
+    {
+      "name": "lyrics-08",
+      "url": "data/lyrics-08.enc",
+      "bytes": 57243,
+      "sha256": "66dd2dbabad0bd730bec12c1114b4a5c434170cb175b26196b1237a58e76752f",
+      "plainSha256": "da26a579a37805f80e57ec956e517e3cd32f0981bc4ea027dd8fad3f130dba29"
+    },
+    {
+      "name": "lyrics-09",
+      "url": "data/lyrics-09.enc",
+      "bytes": 54765,
+      "sha256": "8452c8a392392420db7acf900123d490255516a48b519a74994b653164d76abf",
+      "plainSha256": "68ede064ba488c136fc6b29fb67e2b5d6c8d3d64b81734a48978afcfb27524fc"
+    },
+    {
+      "name": "lyrics-10",
+      "url": "data/lyrics-10.enc",
+      "bytes": 67345,
+      "sha256": "a0e5291357274c8531551e1c8d9604730e6364c901c93a7a5d9b98faabad95e1",
+      "plainSha256": "c933e184e019f5fad0a5af5fb28df594c1df3684f7fc41fe54514f33e0e7ec83"
+    },
+    {
+      "name": "lyrics-11",
+      "url": "data/lyrics-11.enc",
+      "bytes": 66857,
+      "sha256": "6254fb06b99c122c3c594848bfdeb6df488ea3aeeafb64f6e75c53b2b1e42011",
+      "plainSha256": "d1fb63c9d86bc3d55c06f1c5af25fc358d85d1cb41654e74dc6b951410ed7a2c"
+    },
+    {
+      "name": "lyrics-12",
+      "url": "data/lyrics-12.enc",
+      "bytes": 30916,
+      "sha256": "7de8f5a49003a99f9814668a8597cc915f2fa9de4cc3ecf727db9252034120eb",
+      "plainSha256": "828c000518f5dcbfcf7b18836c81ab161d13a2bba9146b44f7b820d00918b9f2"
+    },
+    {
+      "name": "lyrics-13",
+      "url": "data/lyrics-13.enc",
+      "bytes": 56963,
+      "sha256": "8ab2e32337159f5095b071a16b071b03e6a8745ea675b90cbd0311c2718d1a34",
+      "plainSha256": "f21f636c8de67b5ff49ef0eb618fb00c21f426c85217dbaa1452c7e52452258c"
+    },
+    {
+      "name": "lyrics-14",
+      "url": "data/lyrics-14.enc",
+      "bytes": 48133,
+      "sha256": "6d25207e52823ca6c29402e8d8893dc9a01a143ddb2d5dea6a5bb3ae97e55862",
+      "plainSha256": "2e7a86a20398706e4af1422c781eaf801ae67cf4c5f5da37f57c580ea75d05cf"
+    },
+    {
+      "name": "lyrics-15",
+      "url": "data/lyrics-15.enc",
+      "bytes": 32667,
+      "sha256": "ba878a1cd4facd59c08e2b66a73eb53364dcefe73fd7e42aca5d9bdd40763439",
+      "plainSha256": "7353d58fa8618ce4184474081971b115dc6510fbc2d13f3ce5551f47d5948065"
+    },
+    {
+      "name": "lyrics-16",
+      "url": "data/lyrics-16.enc",
+      "bytes": 103352,
+      "sha256": "f56efce966fd4e1b9696ff29fbddaf3271fafafb65e3214745e38f839c79dd07",
+      "plainSha256": "43c8afaedf246806b55a1804d1d1d6f08ac1ae59e4584b37f43c0dc4134fc6f7"
+    },
+    {
+      "name": "lyrics-17",
+      "url": "data/lyrics-17.enc",
+      "bytes": 69670,
+      "sha256": "d212ed87a4db241ee2151f2507764a6851449f85cb65d639671a33f06ee232d5",
+      "plainSha256": "da2a8916781e32c7aadf494fe2ac52cc8506e0195f9a559eeb561d7510974088"
+    },
+    {
+      "name": "lyrics-18",
+      "url": "data/lyrics-18.enc",
+      "bytes": 73132,
+      "sha256": "e4bad0bde0e92b3db214acfbe7c7e6773e2ac9fbc0571442585beb2e45a49b47",
+      "plainSha256": "231dacc0cd406604840f90945069539e6ea3fad4623602db2412f652b7b63ebc"
+    },
+    {
+      "name": "lyrics-19",
+      "url": "data/lyrics-19.enc",
+      "bytes": 75314,
+      "sha256": "6ba31b9c744dfce057f40003ff5710be4d45423b6db4988defaba8bfc9a05467",
+      "plainSha256": "8d3caf1d4681f0a490fd5ad9fb591031577dbd90e4df47e78bab0f92f9db23b5"
+    },
+    {
+      "name": "lyrics-20",
+      "url": "data/lyrics-20.enc",
+      "bytes": 44947,
+      "sha256": "65d3c89a7a37305b0220847ce5a2e04cd9ccb500d01cb5092b9e5752bbac8cc1",
+      "plainSha256": "0beea241b9bddacba520c15ed25fe512efe4a61f7264a8f46fe348fb760b7e7a"
+    },
+    {
+      "name": "lyrics-21",
+      "url": "data/lyrics-21.enc",
+      "bytes": 46061,
+      "sha256": "0b3b2295f3d1d453577952119a31c3dddb9d94b2cb6e518319ecf827efd5159f",
+      "plainSha256": "5bb174bc1a42aa788fc886cb18204a5cbc01c39acb3a927cf7e8399fda81e60b"
+    },
+    {
+      "name": "lyrics-22",
+      "url": "data/lyrics-22.enc",
+      "bytes": 206980,
+      "sha256": "75b5bbe48d68d7dcea9bb00d79693d9f6555508107579f93330eb96dc50caf14",
+      "plainSha256": "09db59440ac9fc3658498bbb3bb029ace8baf9714bc1da8bba2f0f6112638b2a"
+    },
+    {
+      "name": "lyrics-23",
+      "url": "data/lyrics-23.enc",
+      "bytes": 158744,
+      "sha256": "fd35a68d8b2285616851125d58b6f036da732e717e0a88cf227add2e8ce57df6",
+      "plainSha256": "be2ff02b41c0031df42f6ef92e19d9b2044e6b36cd8921a2da5d6e27feb4b769"
+    },
+    {
+      "name": "lyrics-24",
+      "url": "data/lyrics-24.enc",
+      "bytes": 46583,
+      "sha256": "3cfd064e456da07ff6e4f1fe64bc05a84b37fa7467455cbcc48ebe7c8f33331e",
+      "plainSha256": "de11adfb6a3280653a805bd8a6e795ae91eedccc1350baa23aa8d797ae57a970"
+    },
+    {
+      "name": "lyrics-25",
+      "url": "data/lyrics-25.enc",
+      "bytes": 285539,
+      "sha256": "aac50a1fbf54047b78187e5f105ef65c09d7fad56eaa41934090fd59c60de52d",
+      "plainSha256": "8029c7817aaf5498e6f6e85969073935da9463e0fa54337565da0644eae8a739"
+    },
+    {
+      "name": "lyrics-26",
+      "url": "data/lyrics-26.enc",
+      "bytes": 242508,
+      "sha256": "c2c931d934c2671f787544aef59326a4202e1ce5a8ca2d58f582b478f103ef35",
+      "plainSha256": "7f58257bdf4ef5334380976081ff24bd815b3c1c39c88435bc72cb0e66bb166b"
+    },
+    {
+      "name": "lyrics-27",
+      "url": "data/lyrics-27.enc",
+      "bytes": 108269,
+      "sha256": "35b91c6785aa35dfba781c79ea49df8a3169ee2788c6c03a3f2e62b02651667f",
+      "plainSha256": "7e43f9bb1560b4aa39ee99456c97f28e5428f850ef9d43c61767d51ab2aa1c4d"
+    },
+    {
+      "name": "lyrics-28",
+      "url": "data/lyrics-28.enc",
+      "bytes": 68283,
+      "sha256": "94c74793abfa18a1ee97d2ff89800817f57f11e175f569c517d9051619902453",
+      "plainSha256": "0baf53bac92040a32bb111826443785d44207048b507b210cdd5eacd966750c0"
+    },
+    {
+      "name": "lyrics-29",
+      "url": "data/lyrics-29.enc",
+      "bytes": 103724,
+      "sha256": "d1f1b857a66934911a77d3e300c85a2782ff906bbc8e8f1065d0cce6e2a5ffe5",
+      "plainSha256": "87c38f5bfc21fbbab44038212c290ecc6668095a118e2acc210eb843bb0d8ff6"
+    },
+    {
+      "name": "lyrics-30",
+      "url": "data/lyrics-30.enc",
+      "bytes": 178173,
+      "sha256": "cf4344f2afe06e982171d58dff75cbaabe0fa343456c1cd7dc8fbc15d5c72f7a",
+      "plainSha256": "98f9500a032523f85158c03bf7aa067f3484e2fbb0e7b4c10acb553625036fd1"
+    },
+    {
+      "name": "lyrics-31",
+      "url": "data/lyrics-31.enc",
+      "bytes": 122545,
+      "sha256": "3cbb3b57c0ef0c96d3142af0c7666dc5e10f901d2fde7176876c50d2acecac8d",
+      "plainSha256": "e545aecd08d5f3dcc46c4042e5c62b4896e435d50e89c322b4258a9898fcbf37"
+    }
+  ]
+}

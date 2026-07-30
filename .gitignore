@@ -1,0 +1,39 @@
+# Source PDF is the input of record — it must NEVER be committed to the public repo.
+# See SOURCE.md. Keeping it out of history is what makes the password gate meaningful.
+*.pdf
+
+# Build intermediates (regenerable from the PDF)
+build/cache/
+build/interim/
+
+# Secrets
+.env
+.env.*
+secrets/
+*.password
+password.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+web/dist/
+*.tsbuildinfo
+.vite/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Extraction logs
+build/*.log
+
+# Preview / e2e artifacts
+web/preview.log
+web/shots/

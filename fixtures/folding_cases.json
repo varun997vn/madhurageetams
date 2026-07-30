@@ -1,0 +1,1692 @@
+{
+ "_comment": "Shared contract for build/mg/fold.py (pytest) and web/src/lib/fold.ts (vitest). 'cases' pins fold() output exactly. 'equivalences' asserts that a corpus spelling and a plausible user spelling fold to the same value. Regenerate with build/tools/gen_folding_fixtures.py.",
+ "cases": [
+  {
+   "in": "kriShNA",
+   "out": "krisna"
+  },
+  {
+   "in": "krishna",
+   "out": "krisna"
+  },
+  {
+   "in": "rAdhE",
+   "out": "rade"
+  },
+  {
+   "in": "radhe",
+   "out": "rade"
+  },
+  {
+   "in": "rAdhA",
+   "out": "rada"
+  },
+  {
+   "in": "radha",
+   "out": "rada"
+  },
+  {
+   "in": "gOvinda",
+   "out": "govinda"
+  },
+  {
+   "in": "govinda",
+   "out": "govinda"
+  },
+  {
+   "in": "jAnakI",
+   "out": "janaki"
+  },
+  {
+   "in": "janaki",
+   "out": "janaki"
+  },
+  {
+   "in": "anjanEya",
+   "out": "anjaneya"
+  },
+  {
+   "in": "anjaneya",
+   "out": "anjaneya"
+  },
+  {
+   "in": "nArasimha",
+   "out": "narasinha"
+  },
+  {
+   "in": "narasimha",
+   "out": "narasinha"
+  },
+  {
+   "in": "srInivAsa",
+   "out": "srinivasa"
+  },
+  {
+   "in": "sreenivasa",
+   "out": "srinivasa"
+  },
+  {
+   "in": "lakShmI",
+   "out": "laksmi"
+  },
+  {
+   "in": "lakshmi",
+   "out": "laksmi"
+  },
+  {
+   "in": "sarasvathI",
+   "out": "sarasvati"
+  },
+  {
+   "in": "saraswathi",
+   "out": "sarasvati"
+  },
+  {
+   "in": "gaNEsha",
+   "out": "ganesa"
+  },
+  {
+   "in": "ganesha",
+   "out": "ganesa"
+  },
+  {
+   "in": "mAdhava",
+   "out": "madava"
+  },
+  {
+   "in": "madava",
+   "out": "madava"
+  },
+  {
+   "in": "kEshava",
+   "out": "kesava"
+  },
+  {
+   "in": "kesava",
+   "out": "kesava"
+  },
+  {
+   "in": "achyutha",
+   "out": "acyuta"
+  },
+  {
+   "in": "acyuta",
+   "out": "acyuta"
+  },
+  {
+   "in": "pANDuranga",
+   "out": "panduranga"
+  },
+  {
+   "in": "panduranga",
+   "out": "panduranga"
+  },
+  {
+   "in": "vitthala",
+   "out": "vitala"
+  },
+  {
+   "in": "vittala",
+   "out": "vitala"
+  },
+  {
+   "in": "viThala",
+   "out": "vitala"
+  },
+  {
+   "in": "ranganAtha",
+   "out": "ranganata"
+  },
+  {
+   "in": "ranganata",
+   "out": "ranganata"
+  },
+  {
+   "in": "vEnkatEsha",
+   "out": "venkatesa"
+  },
+  {
+   "in": "venkatesa",
+   "out": "venkatesa"
+  },
+  {
+   "in": "nandagOpa",
+   "out": "nandagopa"
+  },
+  {
+   "in": "nandagopa",
+   "out": "nandagopa"
+  },
+  {
+   "in": "yashOdA",
+   "out": "yasoda"
+  },
+  {
+   "in": "yasoda",
+   "out": "yasoda"
+  },
+  {
+   "in": "ANDAL",
+   "out": "andal"
+  },
+  {
+   "in": "andal",
+   "out": "andal"
+  },
+  {
+   "in": "gOdA",
+   "out": "goda"
+  },
+  {
+   "in": "goda",
+   "out": "goda"
+  },
+  {
+   "in": "hanumAn",
+   "out": "hanuman"
+  },
+  {
+   "in": "hanuman",
+   "out": "hanuman"
+  },
+  {
+   "in": "thyAgarAja",
+   "out": "tyagaraja"
+  },
+  {
+   "in": "tyagaraja",
+   "out": "tyagaraja"
+  },
+  {
+   "in": "purandara dAsar",
+   "out": "purandara dasar"
+  },
+  {
+   "in": "Purandara Dasar",
+   "out": "purandara dasar"
+  },
+  {
+   "in": "bhadrAchala rAmadAsar",
+   "out": "badracala ramadasar"
+  },
+  {
+   "in": "bhadrachala ramadasar",
+   "out": "badracala ramadasar"
+  },
+  {
+   "in": "nArAyaNa thIrtthar",
+   "out": "narayana tirtar"
+  },
+  {
+   "in": "narayana theerthar",
+   "out": "narayana tirtar"
+  },
+  {
+   "in": "sadAshiva brahmEndral",
+   "out": "sadasiva brahmendral"
+  },
+  {
+   "in": "sadasiva brahmendral",
+   "out": "sadasiva brahmendral"
+  },
+  {
+   "in": "mIrAbhai",
+   "out": "mirabai"
+  },
+  {
+   "in": "meerabhai",
+   "out": "mirabai"
+  },
+  {
+   "in": "muraLIdhara",
+   "out": "muralidara"
+  },
+  {
+   "in": "muralidhara",
+   "out": "muralidara"
+  },
+  {
+   "in": "swAmiji",
+   "out": "svamiji"
+  },
+  {
+   "in": "svamiji",
+   "out": "svamiji"
+  },
+  {
+   "in": "ammAlu ammAL",
+   "out": "anmalu anmal"
+  },
+  {
+   "in": "ammalu ammal",
+   "out": "anmalu anmal"
+  },
+  {
+   "in": "tukkArAm",
+   "out": "tukaram"
+  },
+  {
+   "in": "tukkaram",
+   "out": "tukaram"
+  },
+  {
+   "in": "nAmdEv",
+   "out": "nandev"
+  },
+  {
+   "in": "namdev",
+   "out": "nandev"
+  },
+  {
+   "in": "EknAth",
+   "out": "eknat"
+  },
+  {
+   "in": "eknath",
+   "out": "eknat"
+  },
+  {
+   "in": "gnAnEshwar",
+   "out": "gnanesvar"
+  },
+  {
+   "in": "jnaneshwar",
+   "out": "gnanesvar"
+  },
+  {
+   "in": "kabIrdAs",
+   "out": "kabirdas"
+  },
+  {
+   "in": "kabirdas",
+   "out": "kabirdas"
+  },
+  {
+   "in": "nammAzhwAr",
+   "out": "nanmalvar"
+  },
+  {
+   "in": "nammalvar",
+   "out": "nanmalvar"
+  },
+  {
+   "in": "AzhwAr",
+   "out": "alvar"
+  },
+  {
+   "in": "alwar",
+   "out": "alvar"
+  },
+  {
+   "in": "kambhOji",
+   "out": "kanboji"
+  },
+  {
+   "in": "kambhoji",
+   "out": "kanboji"
+  },
+  {
+   "in": "shankarAbharaNam",
+   "out": "sankarabaranam"
+  },
+  {
+   "in": "sankarabharanam",
+   "out": "sankarabaranam"
+  },
+  {
+   "in": "madhyamAvathi",
+   "out": "madyamavati"
+  },
+  {
+   "in": "madhyamavati",
+   "out": "madyamavati"
+  },
+  {
+   "in": "Anandabhairavi",
+   "out": "anandabairavi"
+  },
+  {
+   "in": "anandabhairavi",
+   "out": "anandabairavi"
+  },
+  {
+   "in": "mOhanam",
+   "out": "mohanam"
+  },
+  {
+   "in": "mohanam",
+   "out": "mohanam"
+  },
+  {
+   "in": "kalyANi",
+   "out": "kalyani"
+  },
+  {
+   "in": "kalyani",
+   "out": "kalyani"
+  },
+  {
+   "in": "bhairavi",
+   "out": "bairavi"
+  },
+  {
+   "in": "bairavi",
+   "out": "bairavi"
+  },
+  {
+   "in": "nAdanAmakriyA",
+   "out": "nadanamakriya"
+  },
+  {
+   "in": "nadanamakriya",
+   "out": "nadanamakriya"
+  },
+  {
+   "in": "kharaharapriyA",
+   "out": "karaharapriya"
+  },
+  {
+   "in": "kharaharapriya",
+   "out": "karaharapriya"
+  },
+  {
+   "in": "kEdAragauLa",
+   "out": "kedaragaula"
+  },
+  {
+   "in": "kedaragaula",
+   "out": "kedaragaula"
+  },
+  {
+   "in": "punnAgavarALi",
+   "out": "punagavarali"
+  },
+  {
+   "in": "punnagavarali",
+   "out": "punagavarali"
+  },
+  {
+   "in": "sindhubhairavi",
+   "out": "sindubairavi"
+  },
+  {
+   "in": "sindubhairavi",
+   "out": "sindubairavi"
+  },
+  {
+   "in": "yadukulakAmbhOji",
+   "out": "yadukulakanboji"
+  },
+  {
+   "in": "yadukulakamboji",
+   "out": "yadukulakanboji"
+  },
+  {
+   "in": "dhanyAsi",
+   "out": "danyasi"
+  },
+  {
+   "in": "dhanyasi",
+   "out": "danyasi"
+  },
+  {
+   "in": "sAvEri",
+   "out": "saveri"
+  },
+  {
+   "in": "saveri",
+   "out": "saveri"
+  },
+  {
+   "in": "asAvEri",
+   "out": "asaveri"
+  },
+  {
+   "in": "asaveri",
+   "out": "asaveri"
+  },
+  {
+   "in": "bhUpALam",
+   "out": "bupalam"
+  },
+  {
+   "in": "bhupalam",
+   "out": "bupalam"
+  },
+  {
+   "in": "nIlAmbari",
+   "out": "nilanbari"
+  },
+  {
+   "in": "nilambari",
+   "out": "nilanbari"
+  },
+  {
+   "in": "sAhAnA",
+   "out": "sahana"
+  },
+  {
+   "in": "sahana",
+   "out": "sahana"
+  },
+  {
+   "in": "hindOLam",
+   "out": "hindolam"
+  },
+  {
+   "in": "hindolam",
+   "out": "hindolam"
+  },
+  {
+   "in": "brindAvana sAranga",
+   "out": "brindavana saranga"
+  },
+  {
+   "in": "brindavana saranga",
+   "out": "brindavana saranga"
+  },
+  {
+   "in": "thALam",
+   "out": "talam"
+  },
+  {
+   "in": "thalam",
+   "out": "talam"
+  },
+  {
+   "in": "kIrtthana",
+   "out": "kirtana"
+  },
+  {
+   "in": "kirtana",
+   "out": "kirtana"
+  },
+  {
+   "in": "shlOkam",
+   "out": "slokam"
+  },
+  {
+   "in": "slokam",
+   "out": "slokam"
+  },
+  {
+   "in": "nAmAvaLi",
+   "out": "namavali"
+  },
+  {
+   "in": "namavali",
+   "out": "namavali"
+  },
+  {
+   "in": "aShTapadi",
+   "out": "astapadi"
+  },
+  {
+   "in": "ashtapadi",
+   "out": "astapadi"
+  },
+  {
+   "in": "aShTakam",
+   "out": "astakam"
+  },
+  {
+   "in": "ashtakam",
+   "out": "astakam"
+  },
+  {
+   "in": "tharangam",
+   "out": "tarangam"
+  },
+  {
+   "in": "tarangam",
+   "out": "tarangam"
+  },
+  {
+   "in": "divyanAmam",
+   "out": "divyanamam"
+  },
+  {
+   "in": "divyanamam",
+   "out": "divyanamam"
+  },
+  {
+   "in": "abhang",
+   "out": "abang"
+  },
+  {
+   "in": "abang",
+   "out": "abang"
+  },
+  {
+   "in": "pAsuram",
+   "out": "pasuram"
+  },
+  {
+   "in": "pasuram",
+   "out": "pasuram"
+  },
+  {
+   "in": "gIthAvaLi",
+   "out": "gitavali"
+  },
+  {
+   "in": "geethavali",
+   "out": "gitavali"
+  },
+  {
+   "in": "kIrtthanAvaLi",
+   "out": "kirtanavali"
+  },
+  {
+   "in": "keerthanavali",
+   "out": "kirtanavali"
+  },
+  {
+   "in": "kShEtram",
+   "out": "ksetram"
+  },
+  {
+   "in": "kshetram",
+   "out": "ksetram"
+  },
+  {
+   "in": "mangaLam",
+   "out": "mangalam"
+  },
+  {
+   "in": "mangalam",
+   "out": "mangalam"
+  },
+  {
+   "in": "thODaya mangaLam",
+   "out": "todaya mangalam"
+  },
+  {
+   "in": "thodaya mangalam",
+   "out": "todaya mangalam"
+  },
+  {
+   "in": "pavvaLimpu",
+   "out": "pavalinpu"
+  },
+  {
+   "in": "pavvalimpu",
+   "out": "pavalinpu"
+  },
+  {
+   "in": "dOlOtsavam",
+   "out": "dolotsavam"
+  },
+  {
+   "in": "dolotsavam",
+   "out": "dolotsavam"
+  },
+  {
+   "in": "kalyANa utsavam",
+   "out": "kalyana utsavam"
+  },
+  {
+   "in": "kalyana utsavam",
+   "out": "kalyana utsavam"
+  },
+  {
+   "in": "nithyOtsava",
+   "out": "nityotsava"
+  },
+  {
+   "in": "nithyothsava",
+   "out": "nityotsava"
+  },
+  {
+   "in": "vasantha kELikA",
+   "out": "vasanta kelika"
+  },
+  {
+   "in": "vasanta kelika",
+   "out": "vasanta kelika"
+  },
+  {
+   "in": "dashAvathAram",
+   "out": "dasavataram"
+  },
+  {
+   "in": "dasavataram",
+   "out": "dasavataram"
+  },
+  {
+   "in": "navarAthri",
+   "out": "navaratri"
+  },
+  {
+   "in": "navaratri",
+   "out": "navaratri"
+  },
+  {
+   "in": "shivarAthri",
+   "out": "sivaratri"
+  },
+  {
+   "in": "sivaratri",
+   "out": "sivaratri"
+  },
+  {
+   "in": "ekAdashi",
+   "out": "ekadasi"
+  },
+  {
+   "in": "ekadasi",
+   "out": "ekadasi"
+  },
+  {
+   "in": "guru pUrNimA",
+   "out": "guru purnima"
+  },
+  {
+   "in": "guru purnima",
+   "out": "guru purnima"
+  },
+  {
+   "in": "rAma navami",
+   "out": "rama navami"
+  },
+  {
+   "in": "rama navami",
+   "out": "rama navami"
+  },
+  {
+   "in": "janmAShTami",
+   "out": "janmastami"
+  },
+  {
+   "in": "janmashtami",
+   "out": "janmastami"
+  },
+  {
+   "in": "gOkulAShTami",
+   "out": "gokulastami"
+  },
+  {
+   "in": "gokulashtami",
+   "out": "gokulastami"
+  },
+  {
+   "in": "rAdhAShTami",
+   "out": "radastami"
+  },
+  {
+   "in": "radhashtami",
+   "out": "radastami"
+  },
+  {
+   "in": "sathsanga",
+   "out": "satsanga"
+  },
+  {
+   "in": "satsanga",
+   "out": "satsanga"
+  },
+  {
+   "in": "nAma mahimA",
+   "out": "nama mahima"
+  },
+  {
+   "in": "nama mahima",
+   "out": "nama mahima"
+  },
+  {
+   "in": "upadEsha",
+   "out": "upadesa"
+  },
+  {
+   "in": "upadesa",
+   "out": "upadesa"
+  },
+  {
+   "in": "prArtthana",
+   "out": "prartana"
+  },
+  {
+   "in": "prartana",
+   "out": "prartana"
+  },
+  {
+   "in": "dhyAnam",
+   "out": "dyanam"
+  },
+  {
+   "in": "dyanam",
+   "out": "dyanam"
+  },
+  {
+   "in": "bhakthi",
+   "out": "bakti"
+  },
+  {
+   "in": "bakti",
+   "out": "bakti"
+  },
+  {
+   "in": "rukmiNi pariNaya",
+   "out": "rukmini parinaya"
+  },
+  {
+   "in": "rukmini parinaya",
+   "out": "rukmini parinaya"
+  },
+  {
+   "in": "prahlAda",
+   "out": "prahlada"
+  },
+  {
+   "in": "prahlada",
+   "out": "prahlada"
+  },
+  {
+   "in": "bhagavatham",
+   "out": "bagavatam"
+  },
+  {
+   "in": "bagavatam",
+   "out": "bagavatam"
+  },
+  {
+   "in": "vaiShNava",
+   "out": "vaisnava"
+  },
+  {
+   "in": "vaishnava",
+   "out": "vaisnava"
+  },
+  {
+   "in": "thirupathi",
+   "out": "tirupati"
+  },
+  {
+   "in": "tirupati",
+   "out": "tirupati"
+  },
+  {
+   "in": "brindAvanam",
+   "out": "brindavanam"
+  },
+  {
+   "in": "brindavanam",
+   "out": "brindavanam"
+  },
+  {
+   "in": "sankIrtthana",
+   "out": "sankirtana"
+  },
+  {
+   "in": "samkIrtthana",
+   "out": "sankirtana"
+  },
+  {
+   "in": "samyutha",
+   "out": "sanyuta"
+  },
+  {
+   "in": "sanyutha",
+   "out": "sanyuta"
+  },
+  {
+   "in": "shrI",
+   "out": "sri"
+  },
+  {
+   "in": "sri",
+   "out": "sri"
+  },
+  {
+   "in": "uyyAla",
+   "out": "uyala"
+  },
+  {
+   "in": "uyyala",
+   "out": "uyala"
+  },
+  {
+   "in": "gnAna",
+   "out": "gnana"
+  },
+  {
+   "in": "jnana",
+   "out": "gnana"
+  },
+  {
+   "in": "namaH",
+   "out": "nama"
+  },
+  {
+   "in": "namah",
+   "out": "nama"
+  },
+  {
+   "in": "pazham",
+   "out": "palam"
+  },
+  {
+   "in": "palam",
+   "out": "palam"
+  },
+  {
+   "in": "sanjchAra",
+   "out": "sancara"
+  },
+  {
+   "in": "sanchara",
+   "out": "sancara"
+  },
+  {
+   "in": "prEma",
+   "out": "prema"
+  },
+  {
+   "in": "prema",
+   "out": "prema"
+  },
+  {
+   "in": "Ananda",
+   "out": "ananda"
+  },
+  {
+   "in": "ananda",
+   "out": "ananda"
+  },
+  {
+   "in": "dEvaki",
+   "out": "devaki"
+  },
+  {
+   "in": "devaki",
+   "out": "devaki"
+  },
+  {
+   "in": "",
+   "out": ""
+  },
+  {
+   "in": " ",
+   "out": ""
+  },
+  {
+   "in": "   ",
+   "out": ""
+  },
+  {
+   "in": "\n\t",
+   "out": ""
+  },
+  {
+   "in": "01.",
+   "out": "01"
+  },
+  {
+   "in": "|| 05 ||",
+   "out": "05"
+  },
+  {
+   "in": "puNya: cha",
+   "out": "punya ca"
+  },
+  {
+   "in": "namaH shivAya",
+   "out": "nama sivaya"
+  },
+  {
+   "in": "kSha",
+   "out": "ksa"
+  },
+  {
+   "in": "kShu",
+   "out": "ksu"
+  },
+  {
+   "in": "ksh",
+   "out": "ks"
+  },
+  {
+   "in": "zh",
+   "out": "l"
+  },
+  {
+   "in": "zhazha",
+   "out": "lala"
+  },
+  {
+   "in": "aa",
+   "out": "a"
+  },
+  {
+   "in": "aaa",
+   "out": "a"
+  },
+  {
+   "in": "ee",
+   "out": "i"
+  },
+  {
+   "in": "eee",
+   "out": "ie"
+  },
+  {
+   "in": "oo",
+   "out": "u"
+  },
+  {
+   "in": "uu",
+   "out": "u"
+  },
+  {
+   "in": "ii",
+   "out": "i"
+  },
+  {
+   "in": "a",
+   "out": "a"
+  },
+  {
+   "in": "h",
+   "out": "h"
+  },
+  {
+   "in": "hh",
+   "out": "h"
+  },
+  {
+   "in": "ah",
+   "out": "a"
+  },
+  {
+   "in": "ahh",
+   "out": "a"
+  },
+  {
+   "in": "w",
+   "out": "v"
+  },
+  {
+   "in": "ww",
+   "out": "v"
+  },
+  {
+   "in": "www",
+   "out": "v"
+  },
+  {
+   "in": "Vol 17 - HHMuralidharaSwamiji - Ashwin Ji",
+   "out": "vol 17 hmuralidarasvamiji asvin ji"
+  },
+  {
+   "in": "01 - Thodaya Mangalam",
+   "out": "01 todaya mangalam"
+  },
+  {
+   "in": "Slokam| Others",
+   "out": "slokam oters"
+  },
+  {
+   "in": "Tenth Canto Kirtans - ByAltSongTitle",
+   "out": "tent canto kirtans byaltsongtitle"
+  },
+  {
+   "in": "sam-yutha",
+   "out": "sam yuta"
+  },
+  {
+   "in": "sam yutha",
+   "out": "sam yuta"
+  },
+  {
+   "in": "ChChandra",
+   "out": "candra"
+  },
+  {
+   "in": "cchandra",
+   "out": "candra"
+  },
+  {
+   "in": "123",
+   "out": "123"
+  },
+  {
+   "in": "abc123",
+   "out": "abc123"
+  },
+  {
+   "in": "ABC123",
+   "out": "abc123"
+  },
+  {
+   "in": "kṛṣṇa",
+   "out": "krsna"
+  },
+  {
+   "in": "rādhā",
+   "out": "rada"
+  },
+  {
+   "in": "śiva",
+   "out": "siva"
+  },
+  {
+   "in": "shiva",
+   "out": "siva"
+  },
+  {
+   "in": "siva",
+   "out": "siva"
+  },
+  {
+   "in": "kAla",
+   "out": "kala"
+  },
+  {
+   "in": "kaLa",
+   "out": "kala"
+  },
+  {
+   "in": "kalA",
+   "out": "kala"
+  },
+  {
+   "in": "kala",
+   "out": "kala"
+  },
+  {
+   "in": "hare rama hare rama rama rama hare hare",
+   "out": "hare rama hare rama rama rama hare hare"
+  },
+  {
+   "in": "-",
+   "out": ""
+  },
+  {
+   "in": "--",
+   "out": ""
+  },
+  {
+   "in": "  leading and trailing  ",
+   "out": "leading and trailing"
+  },
+  {
+   "in": "a|b",
+   "out": "a b"
+  },
+  {
+   "in": "x",
+   "out": "x"
+  },
+  {
+   "in": "X",
+   "out": "x"
+  }
+ ],
+ "equivalences": [
+  {
+   "corpus": "kriShNA",
+   "user": "krishna",
+   "folded": "krisna"
+  },
+  {
+   "corpus": "rAdhE",
+   "user": "radhe",
+   "folded": "rade"
+  },
+  {
+   "corpus": "rAdhA",
+   "user": "radha",
+   "folded": "rada"
+  },
+  {
+   "corpus": "gOvinda",
+   "user": "govinda",
+   "folded": "govinda"
+  },
+  {
+   "corpus": "jAnakI",
+   "user": "janaki",
+   "folded": "janaki"
+  },
+  {
+   "corpus": "anjanEya",
+   "user": "anjaneya",
+   "folded": "anjaneya"
+  },
+  {
+   "corpus": "nArasimha",
+   "user": "narasimha",
+   "folded": "narasinha"
+  },
+  {
+   "corpus": "srInivAsa",
+   "user": "sreenivasa",
+   "folded": "srinivasa"
+  },
+  {
+   "corpus": "lakShmI",
+   "user": "lakshmi",
+   "folded": "laksmi"
+  },
+  {
+   "corpus": "sarasvathI",
+   "user": "saraswathi",
+   "folded": "sarasvati"
+  },
+  {
+   "corpus": "gaNEsha",
+   "user": "ganesha",
+   "folded": "ganesa"
+  },
+  {
+   "corpus": "mAdhava",
+   "user": "madava",
+   "folded": "madava"
+  },
+  {
+   "corpus": "kEshava",
+   "user": "kesava",
+   "folded": "kesava"
+  },
+  {
+   "corpus": "achyutha",
+   "user": "acyuta",
+   "folded": "acyuta"
+  },
+  {
+   "corpus": "pANDuranga",
+   "user": "panduranga",
+   "folded": "panduranga"
+  },
+  {
+   "corpus": "vitthala",
+   "user": "vittala",
+   "folded": "vitala"
+  },
+  {
+   "corpus": "viThala",
+   "user": "vittala",
+   "folded": "vitala"
+  },
+  {
+   "corpus": "ranganAtha",
+   "user": "ranganata",
+   "folded": "ranganata"
+  },
+  {
+   "corpus": "vEnkatEsha",
+   "user": "venkatesa",
+   "folded": "venkatesa"
+  },
+  {
+   "corpus": "nandagOpa",
+   "user": "nandagopa",
+   "folded": "nandagopa"
+  },
+  {
+   "corpus": "yashOdA",
+   "user": "yasoda",
+   "folded": "yasoda"
+  },
+  {
+   "corpus": "ANDAL",
+   "user": "andal",
+   "folded": "andal"
+  },
+  {
+   "corpus": "gOdA",
+   "user": "goda",
+   "folded": "goda"
+  },
+  {
+   "corpus": "hanumAn",
+   "user": "hanuman",
+   "folded": "hanuman"
+  },
+  {
+   "corpus": "thyAgarAja",
+   "user": "tyagaraja",
+   "folded": "tyagaraja"
+  },
+  {
+   "corpus": "purandara dAsar",
+   "user": "Purandara Dasar",
+   "folded": "purandara dasar"
+  },
+  {
+   "corpus": "bhadrAchala rAmadAsar",
+   "user": "bhadrachala ramadasar",
+   "folded": "badracala ramadasar"
+  },
+  {
+   "corpus": "nArAyaNa thIrtthar",
+   "user": "narayana theerthar",
+   "folded": "narayana tirtar"
+  },
+  {
+   "corpus": "sadAshiva brahmEndral",
+   "user": "sadasiva brahmendral",
+   "folded": "sadasiva brahmendral"
+  },
+  {
+   "corpus": "mIrAbhai",
+   "user": "meerabhai",
+   "folded": "mirabai"
+  },
+  {
+   "corpus": "muraLIdhara",
+   "user": "muralidhara",
+   "folded": "muralidara"
+  },
+  {
+   "corpus": "swAmiji",
+   "user": "svamiji",
+   "folded": "svamiji"
+  },
+  {
+   "corpus": "ammAlu ammAL",
+   "user": "ammalu ammal",
+   "folded": "anmalu anmal"
+  },
+  {
+   "corpus": "tukkArAm",
+   "user": "tukkaram",
+   "folded": "tukaram"
+  },
+  {
+   "corpus": "nAmdEv",
+   "user": "namdev",
+   "folded": "nandev"
+  },
+  {
+   "corpus": "EknAth",
+   "user": "eknath",
+   "folded": "eknat"
+  },
+  {
+   "corpus": "gnAnEshwar",
+   "user": "jnaneshwar",
+   "folded": "gnanesvar"
+  },
+  {
+   "corpus": "kabIrdAs",
+   "user": "kabirdas",
+   "folded": "kabirdas"
+  },
+  {
+   "corpus": "nammAzhwAr",
+   "user": "nammalvar",
+   "folded": "nanmalvar"
+  },
+  {
+   "corpus": "AzhwAr",
+   "user": "alwar",
+   "folded": "alvar"
+  },
+  {
+   "corpus": "kambhOji",
+   "user": "kambhoji",
+   "folded": "kanboji"
+  },
+  {
+   "corpus": "shankarAbharaNam",
+   "user": "sankarabharanam",
+   "folded": "sankarabaranam"
+  },
+  {
+   "corpus": "madhyamAvathi",
+   "user": "madhyamavati",
+   "folded": "madyamavati"
+  },
+  {
+   "corpus": "Anandabhairavi",
+   "user": "anandabhairavi",
+   "folded": "anandabairavi"
+  },
+  {
+   "corpus": "mOhanam",
+   "user": "mohanam",
+   "folded": "mohanam"
+  },
+  {
+   "corpus": "kalyANi",
+   "user": "kalyani",
+   "folded": "kalyani"
+  },
+  {
+   "corpus": "bhairavi",
+   "user": "bairavi",
+   "folded": "bairavi"
+  },
+  {
+   "corpus": "nAdanAmakriyA",
+   "user": "nadanamakriya",
+   "folded": "nadanamakriya"
+  },
+  {
+   "corpus": "kharaharapriyA",
+   "user": "kharaharapriya",
+   "folded": "karaharapriya"
+  },
+  {
+   "corpus": "kEdAragauLa",
+   "user": "kedaragaula",
+   "folded": "kedaragaula"
+  },
+  {
+   "corpus": "punnAgavarALi",
+   "user": "punnagavarali",
+   "folded": "punagavarali"
+  },
+  {
+   "corpus": "sindhubhairavi",
+   "user": "sindubhairavi",
+   "folded": "sindubairavi"
+  },
+  {
+   "corpus": "yadukulakAmbhOji",
+   "user": "yadukulakamboji",
+   "folded": "yadukulakanboji"
+  },
+  {
+   "corpus": "dhanyAsi",
+   "user": "dhanyasi",
+   "folded": "danyasi"
+  },
+  {
+   "corpus": "sAvEri",
+   "user": "saveri",
+   "folded": "saveri"
+  },
+  {
+   "corpus": "asAvEri",
+   "user": "asaveri",
+   "folded": "asaveri"
+  },
+  {
+   "corpus": "bhUpALam",
+   "user": "bhupalam",
+   "folded": "bupalam"
+  },
+  {
+   "corpus": "nIlAmbari",
+   "user": "nilambari",
+   "folded": "nilanbari"
+  },
+  {
+   "corpus": "sAhAnA",
+   "user": "sahana",
+   "folded": "sahana"
+  },
+  {
+   "corpus": "hindOLam",
+   "user": "hindolam",
+   "folded": "hindolam"
+  },
+  {
+   "corpus": "brindAvana sAranga",
+   "user": "brindavana saranga",
+   "folded": "brindavana saranga"
+  },
+  {
+   "corpus": "thALam",
+   "user": "thalam",
+   "folded": "talam"
+  },
+  {
+   "corpus": "kIrtthana",
+   "user": "kirtana",
+   "folded": "kirtana"
+  },
+  {
+   "corpus": "shlOkam",
+   "user": "slokam",
+   "folded": "slokam"
+  },
+  {
+   "corpus": "nAmAvaLi",
+   "user": "namavali",
+   "folded": "namavali"
+  },
+  {
+   "corpus": "aShTapadi",
+   "user": "ashtapadi",
+   "folded": "astapadi"
+  },
+  {
+   "corpus": "aShTakam",
+   "user": "ashtakam",
+   "folded": "astakam"
+  },
+  {
+   "corpus": "tharangam",
+   "user": "tarangam",
+   "folded": "tarangam"
+  },
+  {
+   "corpus": "divyanAmam",
+   "user": "divyanamam",
+   "folded": "divyanamam"
+  },
+  {
+   "corpus": "abhang",
+   "user": "abang",
+   "folded": "abang"
+  },
+  {
+   "corpus": "pAsuram",
+   "user": "pasuram",
+   "folded": "pasuram"
+  },
+  {
+   "corpus": "gIthAvaLi",
+   "user": "geethavali",
+   "folded": "gitavali"
+  },
+  {
+   "corpus": "kIrtthanAvaLi",
+   "user": "keerthanavali",
+   "folded": "kirtanavali"
+  },
+  {
+   "corpus": "kShEtram",
+   "user": "kshetram",
+   "folded": "ksetram"
+  },
+  {
+   "corpus": "mangaLam",
+   "user": "mangalam",
+   "folded": "mangalam"
+  },
+  {
+   "corpus": "thODaya mangaLam",
+   "user": "thodaya mangalam",
+   "folded": "todaya mangalam"
+  },
+  {
+   "corpus": "pavvaLimpu",
+   "user": "pavvalimpu",
+   "folded": "pavalinpu"
+  },
+  {
+   "corpus": "dOlOtsavam",
+   "user": "dolotsavam",
+   "folded": "dolotsavam"
+  },
+  {
+   "corpus": "kalyANa utsavam",
+   "user": "kalyana utsavam",
+   "folded": "kalyana utsavam"
+  },
+  {
+   "corpus": "nithyOtsava",
+   "user": "nithyothsava",
+   "folded": "nityotsava"
+  },
+  {
+   "corpus": "vasantha kELikA",
+   "user": "vasanta kelika",
+   "folded": "vasanta kelika"
+  },
+  {
+   "corpus": "dashAvathAram",
+   "user": "dasavataram",
+   "folded": "dasavataram"
+  },
+  {
+   "corpus": "navarAthri",
+   "user": "navaratri",
+   "folded": "navaratri"
+  },
+  {
+   "corpus": "shivarAthri",
+   "user": "sivaratri",
+   "folded": "sivaratri"
+  },
+  {
+   "corpus": "ekAdashi",
+   "user": "ekadasi",
+   "folded": "ekadasi"
+  },
+  {
+   "corpus": "guru pUrNimA",
+   "user": "guru purnima",
+   "folded": "guru purnima"
+  },
+  {
+   "corpus": "rAma navami",
+   "user": "rama navami",
+   "folded": "rama navami"
+  },
+  {
+   "corpus": "janmAShTami",
+   "user": "janmashtami",
+   "folded": "janmastami"
+  },
+  {
+   "corpus": "gOkulAShTami",
+   "user": "gokulashtami",
+   "folded": "gokulastami"
+  },
+  {
+   "corpus": "rAdhAShTami",
+   "user": "radhashtami",
+   "folded": "radastami"
+  },
+  {
+   "corpus": "sathsanga",
+   "user": "satsanga",
+   "folded": "satsanga"
+  },
+  {
+   "corpus": "nAma mahimA",
+   "user": "nama mahima",
+   "folded": "nama mahima"
+  },
+  {
+   "corpus": "upadEsha",
+   "user": "upadesa",
+   "folded": "upadesa"
+  },
+  {
+   "corpus": "prArtthana",
+   "user": "prartana",
+   "folded": "prartana"
+  },
+  {
+   "corpus": "dhyAnam",
+   "user": "dyanam",
+   "folded": "dyanam"
+  },
+  {
+   "corpus": "bhakthi",
+   "user": "bakti",
+   "folded": "bakti"
+  },
+  {
+   "corpus": "rukmiNi pariNaya",
+   "user": "rukmini parinaya",
+   "folded": "rukmini parinaya"
+  },
+  {
+   "corpus": "prahlAda",
+   "user": "prahlada",
+   "folded": "prahlada"
+  },
+  {
+   "corpus": "bhagavatham",
+   "user": "bagavatam",
+   "folded": "bagavatam"
+  },
+  {
+   "corpus": "vaiShNava",
+   "user": "vaishnava",
+   "folded": "vaisnava"
+  },
+  {
+   "corpus": "thirupathi",
+   "user": "tirupati",
+   "folded": "tirupati"
+  },
+  {
+   "corpus": "brindAvanam",
+   "user": "brindavanam",
+   "folded": "brindavanam"
+  },
+  {
+   "corpus": "sankIrtthana",
+   "user": "samkIrtthana",
+   "folded": "sankirtana"
+  },
+  {
+   "corpus": "samyutha",
+   "user": "sanyutha",
+   "folded": "sanyuta"
+  },
+  {
+   "corpus": "shrI",
+   "user": "sri",
+   "folded": "sri"
+  },
+  {
+   "corpus": "uyyAla",
+   "user": "uyyala",
+   "folded": "uyala"
+  },
+  {
+   "corpus": "gnAna",
+   "user": "jnana",
+   "folded": "gnana"
+  },
+  {
+   "corpus": "namaH",
+   "user": "namah",
+   "folded": "nama"
+  },
+  {
+   "corpus": "pazham",
+   "user": "palam",
+   "folded": "palam"
+  },
+  {
+   "corpus": "sanjchAra",
+   "user": "sanchara",
+   "folded": "sancara"
+  },
+  {
+   "corpus": "prEma",
+   "user": "prema",
+   "folded": "prema"
+  },
+  {
+   "corpus": "Ananda",
+   "user": "ananda",
+   "folded": "ananda"
+  },
+  {
+   "corpus": "dEvaki",
+   "user": "devaki",
+   "folded": "devaki"
+  }
+ ]
+}

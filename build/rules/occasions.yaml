@@ -1,0 +1,460 @@
+# Occasion taxonomy — the human-editable source of truth for the Occasion Finder.
+#
+# The master PDF has no occasion or festival field. It does have deity, ~540 category
+# tags, and 97 index links, and between them the signal is there: Dolotsavam is Holi,
+# Nandotsavam is Janmashtami, Pavvalimpu is a cradle song, and so on. This file is where
+# that judgement lives, deliberately in YAML rather than in code so it can be corrected
+# without touching the pipeline.
+#
+# To refine: edit this file, then `python run_all.py --from 20`. That re-enriches,
+# rebuilds and repacks in seconds — it never re-reads the PDF.
+#
+# RULE SEMANTICS
+#   any:   list of clauses. A song matches the occasion if ANY clause matches.
+#          Within one clause, every key present must match (AND).
+#   none:  a single clause. If it matches, the song is excluded even if `any` matched.
+#   Keys:  tags_any / deity_any / indexed_any / composer_any  -> exact match after
+#            canonicalisation, case- and diacritic-insensitive (folded key).
+#          title_kw_any / lyrics_kw_any -> match a folded *token* in the title/lyrics,
+#            so write plain ASCII: "krishna", not "kriShNa".
+#   boost_tags: songs carrying these rank first within the occasion.
+#   spot_check: song ids that MUST land in this occasion. Asserted by the test suite, so
+#            a rule edit that quietly drops the obvious songs fails CI.
+#
+# Group determines where the card appears on the landing page.
+
+occasions:
+
+  # ---------------------------------------------------------------- Festivals --------
+  - id: krishna-janmashtami
+    label: Krishna Janmashtami
+    group: festival
+    icon: "🪈"
+    month_hint: Aug–Sep
+    priority: 10
+    blurb: Krishna's birth — Nandotsavam, cradle songs and the Tenth Canto.
+    spot_check: [306, 315, 316]
+    any:
+      - tags_any: ["Nandotsavam", "Tenth Canto Kirtans", "Bala Leela"]
+      - tags_any: ["Krishna Namavali"]
+        deity_any: [Krishna, Govinda]
+      - title_kw_any: [jananam, nandagopa, nandanandana, yasoda, devaki, gokula, uyyala, lali]
+    boost_tags: ["Nandotsavam", "Tenth Canto Kirtans"]
+
+  - id: rama-navami
+    label: Rama Navami
+    group: festival
+    icon: "🏹"
+    month_hint: Mar–Apr
+    priority: 20
+    blurb: Sri Rama's appearance day — Rama namavali, Janaki Vijayam, Raghava Shatakam.
+    spot_check: [2635, 2636, 2639]
+    any:
+      - deity_any: [Rama, Sita, "Janaki Vijayam"]
+      - tags_any: ["Rama Namavali", "Shri Raghava Shathakam", "Janaki Vijayam"]
+      - indexed_any: [RamaNamavali, SlokamOnRama, DivyanamamRama, RamaKshetram]
+    none:
+      tags_any: ["Mangalam", "Thodaya Mangalam"]
+    boost_tags: ["Janaki Vijayam", "Shri Raghava Shathakam"]
+
+  - id: radhashtami
+    label: Radhashtami
+    group: festival
+    icon: "🌸"
+    month_hint: Aug–Sep
+    priority: 30
+    blurb: Sri Radha's appearance day — Radhika Shatakam, Radha Madhava Shatakam.
+    spot_check: [1645, 1646, 1647]
+    any:
+      - deity_any: [Radhe, Yugalam]
+      - tags_any:
+          ["Radhe Namavali", "Shri Radhika Shathakam", "Radhamadhava Shatakam",
+           "Yugala Shathakam", "Shriradhikavilasachampu", "Radha Sudha Nidhi"]
+      - indexed_any: [RadheNamavali, SlokamOnRadhe, RadhikaShathakam, RadhaMadhavaShathakam]
+    boost_tags: ["Shri Radhika Shathakam", "Radhamadhava Shatakam", "Radha Kalyanam"]
+
+  - id: guru-purnima
+    label: Guru Purnima
+    group: festival
+    icon: "🪷"
+    month_hint: Jul
+    priority: 40
+    blurb: Songs on the guru lineage — guru namavali, guru stotram, Sadguru vandanam.
+    spot_check: [12, 109, 122]
+    any:
+      - deity_any: [Guru, "Sri Muralidhara Swamiji", "Sri Gnananandar",
+                    "Shri Bhagavannama Bodhendral", "Shri Dattatreyar"]
+      - tags_any: ["Guru Namavali", "Guru", "Gurutraya Dhyanam"]
+      - indexed_any: [GuruNamavali, SlokamOnGuru]
+    boost_tags: ["Guru Namavali", "Gurutraya Dhyanam"]
+
+  - id: maha-shivaratri
+    label: Maha Shivaratri
+    group: festival
+    icon: "🔱"
+    month_hint: Feb–Mar
+    priority: 50
+    blurb: Night vigil for Siva — Siva namavali and Siva kshetram songs.
+    spot_check: [695, 696, 856]
+    any:
+      - deity_any: [Shiva]
+      - tags_any: ["Shiva Namavali", "Shiva"]
+      - indexed_any: [SlokamOnShiva, ShivaKshetram]
+    boost_tags: ["Shiva Namavali"]
+
+  - id: navaratri
+    label: Navaratri
+    group: festival
+    icon: "🪔"
+    month_hint: Sep–Oct
+    priority: 60
+    blurb: Nine nights of the Devi — Devi, Lakshmi and Saraswathi kirtans.
+    spot_check: [823, 860, 948]
+    any:
+      - deity_any: [Devi, Lakshmi, Saraswathi, "Tulasi Devi", "Mahalakshmi"]
+      - tags_any: ["Devi Namavali", "Devi", "Lakshmi", "Saraswathi", "Kummi"]
+    boost_tags: ["Devi Namavali"]
+
+  - id: ganesh-chaturthi
+    label: Ganesh Chaturthi
+    group: festival
+    icon: "🐘"
+    month_hint: Aug–Sep
+    priority: 70
+    blurb: Invocations to Ganapati, traditionally sung before anything else.
+    spot_check: [595, 809, 824]
+    any:
+      - deity_any: [Ganesh, Ganapathi]
+      - title_kw_any: [ganesa, ganapati, vinayaka, gajanana, vigneswara, vignesvara]
+
+  - id: hanuman-jayanti
+    label: Hanuman Jayanti
+    group: festival
+    icon: "🙏"
+    month_hint: Dec–Jan
+    priority: 80
+    blurb: Anjaneya namavali and Anjaneya Utsavam songs.
+    spot_check: [349, 428, 546]
+    any:
+      - deity_any: [Anjaneya, Hanuman]
+      - tags_any: ["Anjaneya Namavali", "Anjaneya", "Anjaneya Utsavam"]
+    boost_tags: ["Anjaneya Utsavam", "Anjaneya Namavali"]
+
+  - id: narasimha-jayanti
+    label: Narasimha Jayanti
+    group: festival
+    icon: "🦁"
+    month_hint: Apr–May
+    priority: 90
+    blurb: Narasimha kirtans and Prahlada Bhakti Vijayam.
+    spot_check: [6498, 6499, 6495]
+    any:
+      - deity_any: [Narasimhar, Narasimha]
+      - tags_any: ["Prahlada Bhakti Vijayam", "Narasimha"]
+      - title_kw_any: [narasinha, nrisinha, prahlada]
+    boost_tags: ["Prahlada Bhakti Vijayam"]
+
+  - id: vaikunta-ekadasi
+    label: Vaikunta Ekadasi
+    group: festival
+    icon: "🚪"
+    month_hint: Dec–Jan
+    priority: 100
+    blurb: Ranganatha, Srinivasa and divyadesam songs for the day of the gateway.
+    spot_check: [248, 303, 317]
+    any:
+      - deity_any: [Ranganatha, Srinivasa, Narayana, Divyadesam, "Divyadesha Vaibhavam"]
+      - tags_any: ["Srinivasa Namavali", "Ranga Shathakam", "Tirupathi", "Pasuram"]
+      - indexed_any: [SrinivasaNamavali, DivyaDeshaVaibhavam, SrinivasaKshetram]
+    boost_tags: ["Ranga Shathakam", "Srinivasa Namavali", "Pasuram"]
+
+  - id: gita-jayanti
+    label: Gita Jayanti
+    group: festival
+    icon: "📖"
+    month_hint: Nov–Dec
+    priority: 110
+    blurb: Bhagavad Gita and Shruti Gita verses.
+    spot_check: [8021, 8022, 8023]
+    any:
+      - deity_any: ["Shrimad Bhagavadgita", "Shrutigita"]
+      - tags_any: ["Shrimad Bhagavadgita", "Shrutigita", "Mahishi Gitam"]
+      - indexed_any: [BhagavadGita, ShruthiGitha]
+
+  - id: holi-dolotsavam
+    label: Holi / Dolotsavam
+    group: festival
+    icon: "🎨"
+    month_hint: Mar
+    priority: 120
+    blurb: The swing festival — Dolotsavam songs and spring colour.
+    spot_check: [341, 342, 343]
+    any:
+      - tags_any: ["Dolotsavam", "Dolotsavam - M", "Dolotsavam - T"]
+      - indexed_any: [Dolotsavam, DolotsavamByAnna, DolotsavamBySwamiji, DolotsavamThyagaraja]
+
+  - id: vasantotsavam
+    label: Vasantotsavam
+    group: festival
+    icon: "🌼"
+    month_hint: Mar–Apr
+    priority: 130
+    blurb: Spring festival — Vasantha Kelika and Rasa Ganam.
+    spot_check: [195, 304, 432]
+    any:
+      - tags_any: ["Vasantha Kelika", "Rasa Ganam", "Rasa Leela", "VasanthOtsavam"]
+      - indexed_any: [VasanthOtsavam]
+
+  - id: margazhi-andal
+    label: Margazhi / Andal
+    group: festival
+    icon: "🌾"
+    month_hint: Dec–Jan
+    priority: 140
+    blurb: Tiruppavai season — Andal, Goda Prabandham and the Azhwars' pasurams.
+    spot_check: [7839, 7840, 7841]
+    any:
+      - deity_any: [Andal, "Andal Kalyanam", "Goda Prabandham"]
+      - tags_any: ["Andal Kalyanam", "Goda Prabandham", "Pasuram"]
+      - indexed_any: [GodaPrabandham]
+    boost_tags: ["Andal Kalyanam", "Goda Prabandham"]
+
+  - id: krishna-brindavan
+    label: Brindavan & Govardhan
+    group: festival
+    icon: "⛰️"
+    month_hint: Oct–Nov
+    priority: 150
+    blurb: Brindavana Mahatmyam, Govardhan and the glories of the dham.
+    spot_check: [6897, 6898, 6899]
+    any:
+      - deity_any: ["Brindavana Mahatmyam", "Kolahala Brindavana Bhajanai"]
+      - tags_any: ["Brindavana Mahatmyam", "Brindavanam", "Kolahala Brindavana Bhajanai"]
+      - indexed_any: [BrindavanaMahatmyam, KolahalaBrindavan]
+      - title_kw_any: [govardana, brindavana, vrindavana]
+    boost_tags: ["Brindavana Mahatmyam"]
+
+  # ------------------------------------------------------- Bhajan sampradaya ---------
+  - id: session-opening
+    label: Session Opening
+    group: sampradaya
+    icon: "🔔"
+    priority: 200
+    blurb: Thodaya Mangalam and the invocation that begins a bhajan.
+    spot_check: [1193, 4590, 1129]
+    any:
+      - tags_any: ["Thodaya Mangalam", "Bhajanarambha / Thodaya Mangalam",
+                   "Thodaya SlokamByAnna"]
+      - indexed_any: [ThodayaMangalam]
+
+  - id: session-dhyanam
+    label: Dhyanam & Prayer
+    group: sampradaya
+    icon: "🧘"
+    priority: 210
+    blurb: Meditation verses and opening prayers.
+    spot_check: [321, 568, 681]
+    any:
+      - tags_any: ["Devatha Dhyanam", "Dhyana Shlokam", "Gurutraya Dhyanam", "Prayer"]
+      - indexed_any: [Prayer, PrayerBySwamiji, PrayerRadhe]
+
+  - id: session-divyanamam
+    label: Divyanamam
+    group: sampradaya
+    icon: "📿"
+    priority: 220
+    blurb: The core namavali sequence of a sampradaya bhajan.
+    spot_check: [183, 224, 737]
+    any:
+      - tags_any: ["Divyanamam"]
+      - indexed_any:
+          [Divyanamam, DivyanamamByAnna, DivyanamamBySwamiji, DivyanamamPurandaradasar,
+           DivyanamamRamadasar, DivyanamamRama, DivyanamamTheerthar, DivyanamamThyagaraja,
+           DivyanamamVijayaGopala, DivyanamamVittala]
+    boost_tags: ["Divyanamam"]
+
+  - id: session-ashtapadi
+    label: Ashtapadi
+    group: sampradaya
+    icon: "🎼"
+    priority: 230
+    blurb: Jayadeva's Gita Govindam and the ashtapadi tradition.
+    spot_check: [5103, 7971, 7972]
+    any:
+      - tags_any: ["Gita Govindam", "Ashtapadi", "Ramanuja Ashtapadi"]
+      - indexed_any: [Ashtapadi]
+      - composer_any: ["Sri Jayadevar"]
+
+  - id: session-tharangam
+    label: Tharangam
+    group: sampradaya
+    icon: "🌊"
+    priority: 240
+    blurb: Narayana Theerthar's Krishna Leela Tharangini.
+    spot_check: [1246, 2331, 2867]
+    any:
+      - tags_any: ["Tharangam"]
+      - indexed_any: [KrishnaLeelaTharangini]
+      - composer_any: ["Sri Narayana Theerthar"]
+
+  - id: session-ashtakam
+    label: Ashtakam & Stotram
+    group: sampradaya
+    icon: "📜"
+    priority: 250
+    blurb: Eight-verse hymns, dashakam, panchakam and stotra malas.
+    spot_check: [1234, 2615, 2629]
+    any:
+      - tags_any: ["Ashtakam", "Ashtotram", "Dashakam", "Panjchakam", "Gadyam",
+                   "Laghu Stotram"]
+      - indexed_any: [Ashtakam, Panjchakam, LaghuStotraMala, Gadyam]
+
+  - id: session-abhang
+    label: Abhang
+    group: sampradaya
+    icon: "🪕"
+    priority: 260
+    blurb: The Varkari tradition — Tukaram, Namdev, Eknath, Gnaneshwar.
+    spot_check: [556, 2544, 2545]
+    any:
+      - tags_any: ["Abhang"]
+      - indexed_any: [Abhang, AbhangRama, AbhangSadhuNama]
+      - deity_any: [Vittala]
+    boost_tags: ["Abhang"]
+
+  - id: session-closing
+    label: Session Closing
+    group: sampradaya
+    icon: "🪘"
+    priority: 900
+    blurb: Mangalam — the benediction that ends a bhajan.
+    spot_check: [191, 456, 907]
+    any:
+      - tags_any: ["Mangalam"]
+      - indexed_any: [Mangalam, MangalamByAnna, MangalamBySwamiji]
+    none:
+      tags_any: ["Thodaya Mangalam"]
+
+  # -------------------------------------------------------- Life & themes -----------
+  - id: wedding-kalyanam
+    label: Weddings & Kalyanam
+    group: life
+    icon: "💐"
+    priority: 300
+    blurb: Kalyana Utsavam, Radha Kalyanam and Andal Kalyanam — divine wedding songs.
+    spot_check: [5, 2175, 2988]
+    any:
+      - tags_any: ["Kalyana Utsavam", "Radha Kalyanam", "Andal Kalyanam",
+                   "Rukmini Parinaya Mahakavyam"]
+      - indexed_any: [KalyanaUtsavam, RukminiParinayaMahakavyam]
+    boost_tags: ["Kalyana Utsavam", "Radha Kalyanam"]
+
+  - id: cradle-pavvalimpu
+    label: Cradle & Lullaby
+    group: life
+    icon: "🍼"
+    priority: 310
+    blurb: Pavvalimpu — songs for laying the Lord to rest, and cradle ceremonies.
+    spot_check: [2013, 2357, 4567]
+    any:
+      - tags_any: ["Pavvalimpu", "Pavvalimpu - Telugu"]
+      - title_kw_any: [uyyala, lali, jo, joji, thalattu, talatu]
+
+  - id: pilgrimage-kshetram
+    label: Pilgrimage & Kshetram
+    group: life
+    icon: "🛕"
+    priority: 320
+    blurb: Songs of the holy places — kshetram kirtans and Divya Desha Vaibhavam.
+    spot_check: [356, 388, 390]
+    any:
+      - tags_any: ["Kshetram", "Choladesha", "Keraladesha", "Tirupathi"]
+      - indexed_any: [Kshetram, KshetramByAnna, KshetramBySwamiji, RamaKshetram,
+                      ShivaKshetram, SrinivasaKshetram, DivyaDeshaVaibhavam]
+    boost_tags: ["Kshetram"]
+
+  - id: satsang-nama-mahima
+    label: Satsang & Nama Mahima
+    group: life
+    icon: "🕊️"
+    priority: 330
+    blurb: The glory of the divine name and the company of the devout.
+    spot_check: [2356, 4125, 5124]
+    any:
+      - deity_any: ["Nama Mahima", Sadhu, "Satsang Mahima"]
+      - tags_any: ["Nama Mahima", "Satsang / Sadhu Mahima", "Upadesha"]
+    boost_tags: ["Nama Mahima"]
+
+  - id: dashavatharam
+    label: Dashavatharam
+    group: life
+    icon: "🐟"
+    priority: 340
+    blurb: The ten avatars of Vishnu.
+    spot_check: [954, 3093, 3230]
+    any:
+      - tags_any: ["Dashavatharam"]
+      - title_kw_any: [dasavatara, dasavataram]
+
+  - id: bhagavatham
+    label: Bhagavatham
+    group: life
+    icon: "📚"
+    priority: 350
+    blurb: Srimad Bhagavatham episodes set to song.
+    spot_check: [3999, 4178, 4835]
+    any:
+      - tags_any: ["Bhagavatham", "Bharathakathamritham", "Govinda Kathamritam",
+                   "Rama Kathamritam"]
+      - indexed_any: [Bhagavatham, BharataKathamritam, GovindaKathamritam, RamaKathamritam]
+
+  - id: latest-additions
+    label: Recently Added
+    group: life
+    icon: "✨"
+    priority: 999
+    blurb: The 75 most recent kirtans in the master copy.
+    spot_check: [7556, 7892, 7895]
+    any:
+      - tags_any: ["Latest75Kirtans", "00-Latest75Kirtans"]
+
+  - id: sacred-works
+    label: Sacred Works & Treatises
+    group: life
+    icon: "🪶"
+    priority: 360
+    blurb: Complete devotional works published in the master copy — Vaishnava Samhita, Vyasa Vijayam, Bhakta Ratnavali and more.
+    spot_check: [166, 536, 685]
+    any:
+      - tags_any:
+          ["Vaishnava Samhita", "Vaishnava Samhita Kirtan", "Vyasa Vijayam",
+           "Bhakthapurishastava:", "Krishnabhakthi Rasodaya:", "Bhaktharatnavali",
+           "Bhakti Patha:", "Premika Gita", "Sandesha Gitam",
+           "Shriradhikavilasachampu", "Janaki Vijayam"]
+      - indexed_any:
+          [VaishnavaSamhitaGrantha, VaishnavaSamhitaiBhajan, VyasaVijayam,
+           BhakthaPurIshasthavam, BhakthaRatnavali, BhakthiPaTham,
+           KrishnaBhaktiRasodaya, PremikaGitha, RadhikaVilasaChampu, JanakiVijayam]
+      - deity_any:
+          ["Vaishnava Samhita", "Vaishnava Samhita Kirtan", "Vyasa Vijayam",
+           "Bhaktapurishastava:", "Krishnabhakthi Rasodaya:", "Bhaktharatnavali",
+           "Bhakti Patha:", "Premika Gita", "Premika Varadan", "Sandesha Gitam",
+           "Shriradhikavilasachampu", "Janaki Vijayam", "Laghu Stotram"]
+
+  - id: guru-parampara-works
+    label: Sri Swamiji & Sampradaya
+    group: life
+    icon: "🕉️"
+    priority: 370
+    blurb: Kirtans about the sampradaya guru lineage, including Sri Muralidhara Swamiji.
+    spot_check: [7199, 7331, 7523]
+    # Deliberately matched on deity (who the song is ABOUT), not composer. Matching
+    # composer would sweep in all 2,461 Sri Sri Anna compositions, which is a catalogue,
+    # not an occasion.
+    any:
+      - deity_any: ["Sri Muralidhara Swamiji", "Sri Sri Anna", "Sri Gnananandar",
+                    "Shri Bhagavannama Bodhendral", "Shri Dattatreyar", "Sadhu",
+                    "Upadesha"]
+      - tags_any: ["Shri Bhagavannama Bodhendral", "Shri Shridara Ayyaval",
+                   "Shri Sadguru Swamigal", "Adi Shankarar", "Shri Gnananandar",
+                   "Shri Sadashiva Brahmendral", "Upadesha"]

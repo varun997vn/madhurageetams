@@ -1,0 +1,93 @@
+# Sampradaya bhajan session structure.
+#
+# The document tags many songs with an ordinal role, e.g. "01 - Thodaya Mangalam",
+# "02 - Ashtakam", "09 - Mangalam". Those ordinals encode the traditional order of a
+# bhajan session, which is exactly what the setlist builder needs: "Auto-order" sorts a
+# selection into a sequence somebody could actually sing.
+#
+# `order` is the sort key. `pin` forces a role to the very start or very end regardless
+# of what else is in the setlist. Songs with no recognised role keep their insertion
+# order and sit between the pinned ends.
+
+roles:
+  - id: thodaya-mangalam
+    label: Thodaya Mangalam
+    note: Invocation that opens the session
+    order: 10
+    pin: first
+    match_tags: ["Thodaya Mangalam", "Bhajanarambha / Thodaya Mangalam", "Thodaya SlokamByAnna"]
+
+  - id: dhyana-shlokam
+    label: Dhyana Shlokam
+    note: Meditation verses
+    order: 20
+    match_tags: ["Dhyana Shlokam", "Devatha Dhyanam", "Gurutraya Dhyanam"]
+
+  - id: guru-kirtan
+    label: Guru Kirtan
+    note: Songs on the guru lineage
+    order: 30
+    match_tags:
+      ["Shri Bodhendral", "Guru - Shri Bodhendral", "Shri Shridara Ayyaval",
+       "Guru - Shri Shridhara Ayyaval", "Shri Sadguru Swamigal",
+       "Guru - Shri Sadguru Swamigal", "Dakshinamoorthy", "Adi Shankarar",
+       "Shri Gnananandar", "Shri Sadashiva Brahmendral"]
+
+  - id: ashtakam
+    label: Ashtakam / Stotram
+    order: 40
+    match_tags: ["Ashtakam", "Ashtotram", "Dashakam", "Panjchakam", "Gadyam"]
+
+  - id: tharangam
+    label: Tharangam
+    order: 50
+    match_tags: ["Tharangam"]
+
+  - id: gita-govindam
+    label: Ashtapadi / Gita Govindam
+    order: 60
+    match_tags: ["Gita Govindam", "Ashtapadi"]
+
+  - id: divyanamam
+    label: Divyanamam
+    note: The core namavali sequence
+    order: 70
+    match_tags:
+      ["Divyanamam", "Divyanamam - Ahvana", "Divyanamam - Nama Mahima",
+       "Divyanamam - Shri Bhadrachala Ramadas", "Divyanamam - Shri Vijayagopala Swami",
+       "Divyanamam - Shri Narayana Tirthar", "Divyanamam - Shri Thyagarajar",
+       "Divyanamam - Shri Purandara Dasar", "Shri Purandara Dasar", "Bhagavatam"]
+
+  - id: vasantha-kelika
+    label: Vasantha Kelika
+    order: 80
+    match_tags: ["Vasantha Kelika"]
+
+  - id: dolotsavam
+    label: Dolotsavam
+    note: Swing festival songs
+    order: 90
+    match_tags: ["Dolotsavam", "Dolotsavam - M", "Dolotsavam - T", "Nandotsavam"]
+
+  - id: kalyana-utsavam
+    label: Kalyana Utsavam
+    order: 100
+    match_tags: ["Kalyana Utsavam", "Radha Kalyanam", "Andal Kalyanam"]
+
+  - id: pavvalimpu
+    label: Pavvalimpu
+    note: Cradle / putting-to-rest songs
+    order: 110
+    match_tags: ["Pavvalimpu", "Pavvalimpu - Telugu"]
+
+  - id: deepa-samaropanam
+    label: Deepa Samaropanam
+    order: 120
+    match_tags: ["Divyanamam - Deepa Samaropanam"]
+
+  - id: mangalam
+    label: Mangalam
+    note: Benediction that closes the session
+    order: 900
+    pin: last
+    match_tags: ["Mangalam"]
