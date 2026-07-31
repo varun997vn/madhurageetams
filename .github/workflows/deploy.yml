@@ -6,7 +6,10 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [claude/madhurageetam-search-site-5am8ec, main]
+    # Only the deployed branch. Listing a second branch here meant a push to either one
+    # started a run, and since both share the `pages` concurrency group with
+    # cancel-in-progress, whichever landed second silently cancelled the other's deploy.
+    branches: [main]
     paths-ignore: ['**.md']
   workflow_dispatch:
 
