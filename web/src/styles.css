@@ -1,5 +1,15 @@
 /* Hand-written CSS rather than a utility framework: this is one dense app with a small,
-   consistent visual vocabulary, and tokens read better than long class strings here. */
+   consistent visual vocabulary, and tokens read better than long class strings here.
+
+   Layout is written desktop-first with an explicit mobile layer below each section.
+   Three rules govern the mobile layer and are worth stating once:
+
+   1. Every :hover lives inside `@media (hover: hover)`. On touch, :hover latches after a
+      tap and leaves rows and chips looking permanently selected.
+   2. Interactive elements reach 44px in their smaller dimension below --bp-md. Chips are
+      the main click-to-filter control and at their desktop 22px they are barely hittable.
+   3. Focusable inputs are 16px below --bp-md. Anything smaller makes iOS Safari zoom the
+      page on focus, and it never zooms back. */
 
 :root {
   --paper: #fbf8f3;
@@ -22,8 +32,33 @@
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  /* Safe-area insets. index.html sets viewport-fit=cover, so anything pinned to an edge
+     must consume these or it lands under the iPhone home indicator / notch. */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  /* Heights of the fixed chrome, so content padding can be derived rather than guessed. */
+  --topbar-h: 56px;
+  --tabbar-h: 56px;
+
+  /* One stacking scale. Without it the tab bar, setlist tray and filter sheet all fight
+     over the bottom of a phone screen. */
+  --z-topbar: 30;
+  --z-tabbar: 40;
+  --z-tray: 45;
+  --z-scrim: 55;
+  --z-sheet: 60;
+
   color-scheme: light dark;
 }
+
+/* Breakpoints (CSS custom properties cannot be used in media queries, so the numbers are
+   repeated in @media — but they are declared here as the single documented reference):
+     --bp-sm  560px   phone portrait
+     --bp-md  860px   phone landscape / small tablet: the mobile layer applies below this
+     --bp-lg 1080px   the two-column browse layout appears at or above this  */
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -49,6 +84,11 @@
 
 html, body, #root { height: 100%; }
 
+html {
+  /* The document is the only scroll container in the app; see .results-list. */
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--paper);
@@ -57,15 +97,35 @@ body {
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* Deliberately no `overflow-x: hidden`: setting one axis to hidden makes the computed
+     value of the other axis `auto`, which turns <body> into a scroll container and breaks
+     position:sticky and iOS momentum scrolling. Overflow is prevented at source instead
+     (min-width:0 on flex/grid children, overflow-wrap on long strings). */
 }
 
-button, input, select, textarea { font: inherit; color: inherit; }
+/* Applied while the filter sheet is open. Saving scrollY and pinning the body is the only
+   reliable way to stop iOS scrolling the page behind a modal. */
+body[data-scroll-locked='true'] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+  /* Removes the 300ms tap delay and stops double-tap zoom on controls. */
+  touch-action: manipulation;
+}
 
 button {
   cursor: pointer;
   background: none;
   border: none;
   padding: 0;
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 :focus-visible {
@@ -81,6 +141,7 @@ a { color: var(--accent-ink); }
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 7px 13px;
   border: 1px solid var(--line-2);
@@ -92,7 +153,6 @@ a { color: var(--accent-ink); }
   white-space: nowrap;
   transition: background 120ms, border-color 120ms, transform 120ms;
 }
-.btn:hover { background: var(--surface-2); border-color: var(--ink-3); }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-primary {
@@ -100,10 +160,15 @@ a { color: var(--accent-ink); }
   border-color: var(--accent);
   color: #fff;
 }
-.btn-primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
 .btn-ghost { border-color: transparent; background: transparent; }
-.btn-ghost:hover { background: var(--surface-2); }
 .btn-sm { padding: 4px 9px; font-size: 12px; }
+.btn-block { width: 100%; }
+
+@media (hover: hover) {
+  .btn:hover { background: var(--surface-2); border-color: var(--ink-3); }
+  .btn-primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+  .btn-ghost:hover { background: var(--surface-2); }
+}
 
 .chip {
   display: inline-flex;
@@ -117,10 +182,14 @@ a { color: var(--accent-ink); }
   font-size: 11.5px;
   line-height: 1.6;
   white-space: nowrap;
+  position: relative;
 }
-button.chip:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
 .chip-active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .chip-muted { color: var(--ink-3); }
+
+@media (hover: hover) {
+  button.chip:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+}
 
 .field {
   width: 100%;
@@ -148,13 +217,40 @@ mark {
   padding: 0 1px;
 }
 
+/* --- touch sizing -----------------------------------------------------------------
+   Targets grow via padding, never font-size, so the type scale is unchanged. Chips keep
+   their small visual size and gain an invisible ::after that extends the hit box, which
+   avoids inflating every wrapping chip row into something twice as tall. */
+@media (max-width: 860px) {
+  .btn { min-height: 44px; padding-inline: 15px; }
+  .btn-sm { min-height: 44px; padding: 9px 12px; font-size: 13px; }
+  .brand { min-height: 44px; }
+  /* A song title is the primary way into a record; at its natural 22px line box it was
+     the smallest target on the row. */
+  .result-title { min-height: 44px; display: flex; align-items: center; }
+
+  .chip { padding: 6px 11px; font-size: 12.5px; }
+  button.chip::after {
+    content: '';
+    position: absolute;
+    inset: -6px -2px;
+  }
+
+  /* iOS zooms the page when a focused input is under 16px, and does not zoom back. */
+  input, select, textarea { font-size: 16px; min-height: 44px; }
+  .field { padding: 11px 13px; min-height: 44px; }
+}
+
 /* ---------------------------------------------------------------- unlock ---------- */
 
 .unlock {
-  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 24px;
+  padding-left: max(24px, var(--safe-l));
+  padding-right: max(24px, var(--safe-r));
   background:
     radial-gradient(1100px 500px at 50% -10%, var(--accent-soft), transparent 70%),
     var(--paper);
@@ -186,9 +282,11 @@ mark {
 }
 @media (prefers-color-scheme: dark) { .unlock-error { color: #f2b8b5; } }
 .unlock-remember {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 12.5px; color: var(--ink-2);
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13px; color: var(--ink-2);
+  min-height: 44px;
 }
+.unlock-remember input { width: 20px; height: 20px; }
 .unlock-note {
   margin: 20px 0 0;
   font-size: 11.5px;
@@ -208,6 +306,12 @@ mark {
   transition: width 200ms ease;
 }
 
+@media (max-width: 560px) {
+  .unlock { padding: 16px; align-content: start; padding-top: 8vh; }
+  .unlock-card { padding: 24px 20px; }
+  .unlock h1 { font-size: 24px; }
+}
+
 /* ---------------------------------------------------------------- shell ----------- */
 
 .shell { min-height: 100%; display: flex; flex-direction: column; }
@@ -215,12 +319,14 @@ mark {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: var(--z-topbar);
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 10px 18px;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  padding-left: max(18px, var(--safe-l));
+  padding-right: max(18px, var(--safe-r));
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -236,26 +342,126 @@ mark {
   font-size: 13px;
   color: var(--ink-2);
 }
-.topnav button:hover { background: var(--surface-2); color: var(--ink); }
 .topnav button[aria-current='page'] {
   background: var(--accent-soft); color: var(--accent-ink); font-weight: 600;
+}
+@media (hover: hover) {
+  .topnav button:hover { background: var(--surface-2); color: var(--ink); }
 }
 
 .searchbar { flex: 1; display: flex; gap: 6px; min-width: 140px; max-width: 620px; }
 .searchbar .field { padding-block: 7px; }
-.scope-toggle { display: flex; border: 1px solid var(--line-2); border-radius: var(--radius); overflow: hidden; }
+.scope-toggle {
+  display: flex;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex: none;
+}
 .scope-toggle button { padding: 6px 10px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
 .scope-toggle button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 
+/* Both the scope toggle inside .searchbar and the standalone .scope-row are rendered;
+   exactly one is shown per breakpoint. */
+.scope-row { display: none; }
+
 .page { flex: 1; width: 100%; }
-.wrap { max-width: 1360px; margin: 0 auto; padding: 22px 18px 96px; }
+.wrap {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 22px 18px 96px;
+  padding-left: max(18px, var(--safe-l));
+  padding-right: max(18px, var(--safe-r));
+}
+
+/* --- bottom tab bar (phones only) --------------------------------------------------
+   The four nav destinations move here so the top bar can give the search field real
+   width — the desktop top bar needs ~425px of content at a 375px screen, which is what
+   squeezed search down to roughly 30 usable pixels. */
+.tabbar { display: none; }
+
+@media (max-width: 860px) {
+  .topbar {
+    gap: 10px;
+    padding: 8px 14px calc(8px);
+    padding-left: max(14px, var(--safe-l));
+    padding-right: max(14px, var(--safe-r));
+    flex-wrap: wrap;
+  }
+  .brand { font-size: 16px; margin-right: auto; }
+  .topnav { display: none; }
+  .searchbar {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  /* The scope toggle leaves the search row entirely: on a 375px screen it was consuming
+     most of the field's width. */
+  .searchbar .scope-toggle { display: none; }
+  .scope-row {
+    order: 4;
+    flex-basis: 100%;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .scope-row .scope-toggle { flex: 1; }
+  .scope-row .scope-toggle button { flex: 1; min-height: 44px; font-size: 13px; }
+
+  .page { padding-bottom: calc(var(--tabbar-h) + var(--safe-b)); }
+  .wrap { padding: 16px 14px 24px; padding-left: max(14px, var(--safe-l)); padding-right: max(14px, var(--safe-r)); }
+
+  .tabbar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: var(--z-tabbar);
+    display: flex;
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line-2);
+    padding-bottom: var(--safe-b);
+  }
+  .tabbar button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: var(--tabbar-h);
+    padding: 6px 2px;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    position: relative;
+  }
+  .tabbar button .tab-icon { font-size: 18px; line-height: 1; }
+  .tabbar button[aria-current='page'] { color: var(--accent-ink); font-weight: 600; }
+  .tabbar button[aria-current='page'] .tab-icon { transform: scale(1.08); }
+  .tab-badge {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    margin-left: 6px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 17px;
+    text-align: center;
+  }
+}
 
 /* ---------------------------------------------------------------- home ------------ */
 
 .hero { text-align: center; padding: 26px 0 30px; }
 .hero h1 {
   font-family: var(--serif);
-  font-size: clamp(28px, 5vw, 42px);
+  font-size: clamp(26px, 5vw, 42px);
   font-weight: 600;
   margin: 0 0 8px;
   letter-spacing: -0.02em;
@@ -268,7 +474,7 @@ mark {
 .hero-stats b { color: var(--ink); font-weight: 600; }
 
 .section-head {
-  display: flex; align-items: baseline; gap: 10px;
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
   margin: 34px 0 14px;
 }
 .section-head h2 {
@@ -291,11 +497,7 @@ mark {
   box-shadow: var(--shadow);
   transition: transform 140ms, box-shadow 140ms, border-color 140ms;
 }
-.occasion-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--line-2);
-}
+.occasion-card:active { transform: scale(0.985); }
 .occasion-card .icon { font-size: 22px; line-height: 1; }
 .occasion-card .label { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
 .occasion-card .blurb {
@@ -303,49 +505,59 @@ mark {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .occasion-card .foot {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin-top: 4px; font-size: 11.5px; color: var(--ink-3);
 }
 .occasion-card .count { font-weight: 600; color: var(--accent-ink); }
 
+@media (hover: hover) {
+  .occasion-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--line-2);
+  }
+}
+
 .quick-row { display: flex; flex-wrap: wrap; gap: 7px; }
+
+@media (max-width: 860px) {
+  .hero { padding: 14px 0 20px; }
+  .hero-stats { gap: 6px 14px; font-size: 12.5px; }
+  .section-head { margin: 26px 0 12px; }
+  .occasion-grid { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; }
+  .occasion-card { padding: 13px 13px; }
+  /* Full-width cards have room for another line of context. */
+  .occasion-card .blurb { -webkit-line-clamp: 3; font-size: 12px; }
+  .occasion-card .foot { flex-wrap: wrap; }
+}
 
 /* ---------------------------------------------------------------- browse ---------- */
 
 .browse { display: grid; grid-template-columns: 268px minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 1080px) { .browse { grid-template-columns: 1fr; } }
 
 .facets {
   position: sticky; top: 68px;
   max-height: calc(100vh - 88px);
+  max-height: calc(100dvh - 88px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
   display: grid; gap: 6px;
-}
-/* The facet panel collapses behind a button only on narrow screens; on desktop it is
-   always visible and the toggle is hidden entirely. */
-[data-mobile-only] { display: none; }
-
-@media (max-width: 1080px) {
-  .facets { position: static; max-height: none; }
-  [data-facet-shell][data-open='false'] { display: none; }
-  [data-mobile-only] { display: inline-flex; justify-content: center; }
 }
 
 .facet-group { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .facet-head {
   display: flex; align-items: center; gap: 8px; width: 100%;
-  padding: 9px 11px; font-size: 13px; font-weight: 600;
+  padding: 9px 11px; font-size: 13px; font-weight: 600; text-align: left;
 }
 .facet-head .count { margin-left: auto; font-size: 11px; color: var(--ink-3); font-weight: 500; }
 .facet-body { padding: 0 11px 10px; display: grid; gap: 7px; }
 .facet-search { padding: 5px 9px; font-size: 12.5px; }
-.facet-options { display: grid; gap: 1px; max-height: 260px; overflow-y: auto; }
+.facet-options { display: grid; gap: 1px; max-height: 260px; overflow-y: auto; overscroll-behavior: contain; }
 .facet-option {
   display: flex; align-items: center; gap: 8px;
   padding: 3px 4px; border-radius: 5px; font-size: 12.5px; text-align: left; width: 100%;
 }
-.facet-option:hover { background: var(--surface-2); }
 .facet-option .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .facet-option .n { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 /* Zero-count values are dimmed and sunk rather than hidden: options that vanish as you
@@ -354,14 +566,28 @@ mark {
 .facet-option[data-selected='true'] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .facet-mode { display: flex; gap: 4px; align-items: center; font-size: 11px; color: var(--ink-3); }
 
+@media (hover: hover) {
+  .facet-option:hover { background: var(--surface-2); }
+}
+
 .results-head {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid var(--line);
 }
 .results-count { font-size: 14px; font-weight: 600; }
 .results-tools { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.sort-select { width: auto; padding: 5px 8px; font-size: 12.5px; }
 
 .active-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+
+/* The results list is NOT its own scroll container. It used to be a fixed-height box with
+   `overflow-y:auto`, which on a phone nested a scroll area inside a scrolling page and
+   trapped momentum scrolling. Rows are virtualised against the window instead. */
+.results-list {
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
 
 .result-row {
   display: flex; gap: 12px; align-items: flex-start;
@@ -369,19 +595,20 @@ mark {
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
-.result-row:hover { background: var(--surface-2); }
 .result-main { flex: 1; min-width: 0; }
 .result-title {
   font-family: var(--serif); font-size: 15.5px; font-weight: 600;
   text-align: left; line-height: 1.35; letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
 }
-.result-title:hover { color: var(--accent-ink); }
-.result-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.result-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; align-items: center; }
 .result-snippet {
   margin-top: 6px; font-size: 12.5px; color: var(--ink-2);
-  font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere;
 }
-.result-actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+.result-actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; flex: none; }
 .result-id { font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .badge-core {
   background: color-mix(in srgb, var(--gold) 22%, transparent);
@@ -389,11 +616,101 @@ mark {
   color: var(--accent-ink); font-weight: 600;
 }
 
-.virtual-viewport { height: calc(100vh - 250px); min-height: 380px; overflow-y: auto; border-radius: var(--radius); border: 1px solid var(--line); }
-
-.empty {
-  padding: 60px 20px; text-align: center; color: var(--ink-3);
+@media (hover: hover) {
+  .result-row:hover { background: var(--surface-2); }
+  .result-title:hover { color: var(--accent-ink); }
 }
+
+.empty { padding: 60px 20px; text-align: center; color: var(--ink-3); }
+
+@media (max-width: 1080px) {
+  .browse { grid-template-columns: 1fr; }
+  .facets { position: static; max-height: none; overflow: visible; }
+}
+
+@media (max-width: 860px) {
+  /* Sort and bulk-add drop to their own row; on one row they crushed the count. */
+  .results-head { gap: 8px; }
+  .results-tools { margin-left: 0; width: 100%; }
+  .results-tools .sort-select { flex: 1; font-size: 16px; padding: 10px; min-height: 44px; }
+  .results-tools .btn { flex: 1; }
+  /* "+ Add 200 to setlist" is far too wide next to the sort control at this size. */
+  .add-all-suffix { display: none; }
+
+  .result-row { padding: 12px 12px; gap: 10px; }
+  /* The action column stole width from the title; below this size the setlist button
+     joins the metadata row instead. */
+  .result-actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 8px;
+  }
+  .result-row { flex-direction: column; align-items: stretch; }
+  .result-title { font-size: 16px; }
+
+  .facet-options { max-height: none; overflow: visible; }
+  .facet-head { min-height: 48px; font-size: 14px; }
+  .facet-option { min-height: 44px; padding: 8px 6px; font-size: 14px; }
+  .facet-option .n { font-size: 12.5px; }
+  .facet-search { font-size: 16px; padding: 10px 12px; }
+}
+
+/* --- filter sheet (phones) ---------------------------------------------------------
+   Replaces the inline collapse, which pushed the results far down the page whenever the
+   filters were open. */
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scrim);
+  background: rgba(20, 18, 14, 0.44);
+  backdrop-filter: blur(2px);
+  animation: fade-in 140ms ease;
+}
+.sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+  max-height: 92dvh;
+  background: var(--paper);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: slide-up 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sheet-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.sheet-head h2 { margin: 0; font-family: var(--serif); font-size: 17px; font-weight: 600; }
+.sheet-grab {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  width: 36px; height: 4px; border-radius: 999px; background: var(--line-2);
+}
+.sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px;
+}
+.sheet-foot {
+  display: flex; gap: 10px; align-items: center;
+  padding: 12px 14px calc(12px + var(--safe-b));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  flex: none;
+}
+.sheet-foot .btn { flex: 1; }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
 /* ---------------------------------------------------------------- song ------------ */
 
@@ -402,6 +719,7 @@ mark {
 .song-head h1 {
   font-family: var(--serif); font-size: clamp(21px, 3.4vw, 30px);
   font-weight: 600; margin: 0 0 10px; letter-spacing: -0.015em; line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 .song-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .song-actions { display: flex; flex-wrap: wrap; gap: 7px; margin: 16px 0 20px; }
@@ -420,13 +738,22 @@ mark {
 .song-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
 .song-foot { margin-top: 22px; font-size: 12px; color: var(--ink-3); }
 
+@media (max-width: 860px) {
+  .song-actions { gap: 8px; }
+  .song-actions .btn { flex: 1 1 46%; }
+  .lyrics { padding: 16px 15px; border-radius: var(--radius); font-size: 17px; }
+}
+
 /* ---------------------------------------------------------------- setlist --------- */
 
 .tray {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-tray);
   display: flex; align-items: center; gap: 10px;
   padding: 9px 18px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  padding-left: max(18px, var(--safe-l));
+  padding-right: max(18px, var(--safe-r));
+  padding-bottom: calc(9px + var(--safe-b));
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--line-2);
   box-shadow: 0 -4px 20px rgba(35, 32, 28, 0.07);
@@ -442,30 +769,67 @@ mark {
 .setlist-item[data-dragging='true'] { opacity: 0.45; }
 .setlist-item .grip { cursor: grab; color: var(--ink-3); font-size: 15px; }
 .setlist-item .pos { font-size: 11px; color: var(--ink-3); width: 22px; font-variant-numeric: tabular-nums; }
+.setlist-move { display: flex; gap: 4px; flex: none; }
 .setlist-role { font-size: 11px; color: var(--accent-ink); background: var(--accent-soft); padding: 1px 7px; border-radius: 999px; }
+
+@media (max-width: 860px) {
+  /* The tray sits above the tab bar, and the tab bar is pushed out of its way, so the
+     two never overlap when a setlist is active. */
+  .tray { bottom: calc(var(--tabbar-h) + var(--safe-b)); padding-bottom: 9px; }
+  .setlist-item { flex-wrap: wrap; padding: 10px 12px; }
+  /* HTML5 drag-and-drop does not fire on touch at all, so the grip is dead weight here;
+     the move buttons are the real affordance. */
+  .setlist-item .grip { display: none; }
+  .setlist-move { margin-left: auto; }
+  .setlist-move .btn { min-width: 44px; min-height: 44px; }
+  .setlist-role { font-size: 12px; padding: 3px 9px; }
+}
 
 /* ---------------------------------------------------------------- insights -------- */
 
-.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .chart-card {
   border: 1px solid var(--line); border-radius: var(--radius-lg);
   background: var(--surface); padding: 16px 18px; box-shadow: var(--shadow);
+  min-width: 0;
 }
 .chart-card h3 { margin: 0 0 3px; font-size: 14.5px; font-family: var(--serif); font-weight: 600; }
 .chart-card .hint { margin: 0 0 14px; font-size: 11.5px; color: var(--ink-3); }
 .bar-row { display: grid; grid-template-columns: 128px 1fr 46px; gap: 9px; align-items: center; width: 100%; padding: 2px 0; text-align: left; }
-.bar-row:hover .bar-fill { filter: brightness(1.08); }
-.bar-label { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bar-track { height: 15px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 4px; transition: width 260ms ease; }
+.bar-label { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.bar-track { display: block; height: 15px; background: var(--surface-2); border-radius: 4px; overflow: hidden; min-width: 0; }
+/* `display: block` is load-bearing: these are <span>s, and width/height do not apply to
+   an inline box — the fills rendered at 0x0 on every viewport until this was set. */
+.bar-fill { display: block; height: 100%; border-radius: 4px; transition: width 260ms ease; }
 .bar-value { font-size: 11.5px; color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }
 
-.scroll-x { overflow-x: auto; }
+@media (hover: hover) {
+  .bar-row:hover .bar-fill { filter: brightness(1.08); }
+}
+
+@media (max-width: 860px) {
+  /* 128px of label plus 46px of value left ~115px of bar at 375px. Stacking the label
+     above gives the bar the full card width. */
+  .chart-card { padding: 14px 14px; }
+  .bar-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 'label value' 'track track';
+    gap: 4px 8px;
+    padding: 7px 0;
+    min-height: 44px;
+  }
+  .bar-label { grid-area: label; font-size: 13px; white-space: normal; }
+  .bar-value { grid-area: value; font-size: 12px; }
+  .bar-track { grid-area: track; height: 12px; }
+}
+
+.scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 .spinner {
   width: 15px; height: 15px; border-radius: 50%;
   border: 2px solid var(--line-2); border-top-color: var(--accent);
   animation: spin 700ms linear infinite;
+  flex: none;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 

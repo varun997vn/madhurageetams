@@ -139,7 +139,7 @@ export function SetlistView({ onOpen, onBrowse }: { onOpen: (id: number) => void
                   {song.ragam[0] ? <span className="chip chip-muted">{song.ragam[0]}</span> : null}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div className="setlist-move">
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => index > 0 && setlist.reorder(index, index - 1)}

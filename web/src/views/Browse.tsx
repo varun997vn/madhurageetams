@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ActiveFilters, FacetPanel } from '../components/FacetPanel'
 import { ResultsList } from '../components/ResultsList'
+import { Sheet } from '../components/Sheet'
+import { useCompactViewport } from '../lib/useCompactViewport'
 import { getWorker } from '../lib/workerClient'
 import { useSession } from '../state/session'
 import { useSetlist } from '../state/setlist'
@@ -32,6 +34,7 @@ export function Browse({ route, onRoute, onOpen, onOpenSetlist }: Props) {
   const [response, setResponse] = useState<QueryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [facetsOpen, setFacetsOpen] = useState(false)
+  const compact = useCompactViewport()
   const requestId = useRef(0)
 
   const occasionLabels = useMemo(
@@ -87,16 +90,52 @@ export function Browse({ route, onRoute, onOpen, onOpenSetlist }: Props) {
       ) : null}
 
       <div className="browse">
-        <div>
-          <button
-            className="btn btn-sm"
-            style={{ marginBottom: 8, width: '100%' }}
-            onClick={() => setFacetsOpen((v) => !v)}
-            data-mobile-only
-          >
-            {facetsOpen ? 'Hide filters' : `Filters${activeCount ? ` (${activeCount})` : ''}`}
-          </button>
-          <div data-facet-shell data-open={facetsOpen}>
+        {/* Below --bp-md the facet panel moves into a sheet so it stops pushing the
+            results off the bottom of the screen; above it, it stays a live sidebar. */}
+        {compact ? (
+          <>
+            <button
+              className="btn btn-block"
+              style={{ marginBottom: 12 }}
+              onClick={() => setFacetsOpen(true)}
+            >
+              Filters{activeCount ? ` · ${activeCount}` : ''}
+            </button>
+            <Sheet
+              open={facetsOpen}
+              title="Filters"
+              onClose={() => setFacetsOpen(false)}
+              footer={
+                <>
+                  <button
+                    className="btn"
+                    disabled={activeCount === 0}
+                    onClick={() =>
+                      onRoute({ ...route, filters: { values: {}, modes: {}, unset: {} } })
+                    }
+                  >
+                    Clear all
+                  </button>
+                  <button className="btn btn-primary" onClick={() => setFacetsOpen(false)}>
+                    Show {(response?.total ?? 0).toLocaleString()} song
+                    {response?.total === 1 ? '' : 's'}
+                  </button>
+                </>
+              }
+            >
+              {response ? (
+                <FacetPanel
+                  counts={response.counts}
+                  unsetCounts={response.unsetCounts}
+                  filters={route.filters}
+                  occasionLabels={occasionLabels}
+                  onChange={(filters) => onRoute({ ...route, view: 'browse', filters })}
+                />
+              ) : null}
+            </Sheet>
+          </>
+        ) : (
+          <div>
             {response ? (
               <FacetPanel
                 counts={response.counts}
@@ -107,7 +146,7 @@ export function Browse({ route, onRoute, onOpen, onOpenSetlist }: Props) {
               />
             ) : null}
           </div>
-        </div>
+        )}
 
         <div>
           <div className="results-head">
@@ -124,8 +163,7 @@ export function Browse({ route, onRoute, onOpen, onOpenSetlist }: Props) {
               <label className="visually-hidden" htmlFor="sort">Sort</label>
               <select
                 id="sort"
-                className="field"
-                style={{ width: 'auto', padding: '5px 8px', fontSize: 12.5 }}
+                className="field sort-select"
                 value={route.sort}
                 onChange={(e) => onRoute({ ...route, sort: e.target.value as SortKey })}
               >
@@ -138,7 +176,8 @@ export function Browse({ route, onRoute, onOpen, onOpenSetlist }: Props) {
                 disabled={!response?.rows.length}
                 onClick={() => setlist.addMany(response!.rows.map((r) => r.id))}
               >
-                + Add {response?.rows.length ?? 0} to setlist
+                + Add {response?.rows.length ?? 0}
+                <span className="add-all-suffix"> to setlist</span>
               </button>
             </div>
           </div>

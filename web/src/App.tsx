@@ -133,27 +133,18 @@ export function App() {
               go({ ...route, view: 'browse', songId: undefined, q: e.target.value }, true)
             }
           />
-          <div className="scope-toggle" role="group" aria-label="Search scope">
-            <button
-              aria-pressed={route.scope === 'meta'}
-              onClick={() => go({ ...route, scope: 'meta' })}
-              title="Search titles, composers, ragams and categories"
-            >
-              Titles
-            </button>
-            <button
-              aria-pressed={route.scope === 'all'}
-              onClick={() => go({ ...route, view: 'browse', scope: 'all' })}
-              title="Also search inside the lyrics"
-            >
-              + Lyrics
-            </button>
-          </div>
+          <ScopeToggle route={route} go={go} />
         </div>
 
         <button className="btn btn-sm btn-ghost" onClick={() => void session.lock()} title="Lock and forget the key">
           Lock
         </button>
+
+        {/* On phones the scope toggle leaves the search row and gets its own full-width
+            row below it. Inside the field it was eating most of a 375px screen. */}
+        <div className="scope-row">
+          <ScopeToggle route={route} go={go} />
+        </div>
       </header>
 
       <main className="page">
@@ -198,7 +189,88 @@ export function App() {
       <SetlistTray onOpen={() => go({ ...route, view: 'setlist', songId: undefined })} />
 
       <Footer built={stats?.built ?? ''} lyricsReady={session.lyricsReady} />
+
+      <TabBar route={route} go={go} setlistCount={setlist.ids.length} />
     </div>
+  )
+}
+
+function ScopeToggle({
+  route,
+  go,
+}: {
+  route: hash.AppRoute
+  go: (next: hash.AppRoute, replace?: boolean) => void
+}) {
+  return (
+    <div className="scope-toggle" role="group" aria-label="Search scope">
+      <button
+        aria-pressed={route.scope === 'meta'}
+        onClick={() => go({ ...route, scope: 'meta' })}
+        title="Search titles, composers, ragams and categories"
+      >
+        Titles
+      </button>
+      <button
+        aria-pressed={route.scope === 'all'}
+        onClick={() => go({ ...route, view: 'browse', scope: 'all' })}
+        title="Also search inside the lyrics"
+      >
+        + Lyrics
+      </button>
+    </div>
+  )
+}
+
+const TABS: { view: hash.View; label: string; icon: string }[] = [
+  { view: 'home', label: 'Occasions', icon: '🪷' },
+  { view: 'browse', label: 'Browse', icon: '🔎' },
+  { view: 'insights', label: 'Insights', icon: '📊' },
+  { view: 'setlist', label: 'Setlist', icon: '🎵' },
+]
+
+/**
+ * Phone navigation.
+ *
+ * Hidden entirely above --bp-md; on a phone it replaces the four top-bar nav links, which
+ * is what frees the width the search field needs. Rendered after the tray in the DOM but
+ * sits below it in the stacking scale, and the tray is offset upward by the bar's height,
+ * so an active setlist never covers navigation.
+ */
+function TabBar({
+  route,
+  go,
+  setlistCount,
+}: {
+  route: hash.AppRoute
+  go: (next: hash.AppRoute, replace?: boolean) => void
+  setlistCount: number
+}) {
+  return (
+    <nav className="tabbar" aria-label="Sections">
+      {TABS.map((tab) => {
+        // The song view is reached from Browse, so keep Browse lit while reading a song.
+        const current = route.view === 'song' ? 'browse' : route.view
+        const active = current === tab.view
+        return (
+          <button
+            key={tab.view}
+            aria-current={active ? 'page' : undefined}
+            onClick={() =>
+              tab.view === 'home'
+                ? go({ ...hash.defaultRoute() })
+                : go({ ...route, view: tab.view, songId: undefined })
+            }
+          >
+            <span className="tab-icon" aria-hidden="true">{tab.icon}</span>
+            {tab.label}
+            {tab.view === 'setlist' && setlistCount > 0 ? (
+              <span className="tab-badge">{setlistCount > 99 ? '99+' : setlistCount}</span>
+            ) : null}
+          </button>
+        )
+      })}
+    </nav>
   )
 }
 
