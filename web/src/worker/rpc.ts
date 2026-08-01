@@ -9,6 +9,7 @@
 import type {
   CorpusStats,
   Filters,
+  NativeDoc,
   QueryRequest,
   QueryResponse,
   SiteMeta,
@@ -21,6 +22,10 @@ export interface WorkerRequests {
   query: QueryRequest
   getSong: { id: number }
   getSongs: { ids: number[] }
+  /** Native-script lyrics. Deliberately a separate call: it is the only thing that pulls
+   *  the multi-megabyte native shards, so nothing fetches them by accident. Search and the
+   *  inverted index stay Roman-folded and are untouched by this. */
+  getNative: { ids: number[] }
   facetValues: { facet: string; prefix: string; limit: number }
   chartData: { spec: 'deity' | 'ragam' | 'composer' | 'language' | 'sunburst'; filters: Filters }
   lock: Record<string, never>
@@ -36,6 +41,7 @@ export interface WorkerResponses {
   query: QueryResponse
   getSong: SongDetail | null
   getSongs: SongDetail[]
+  getNative: NativeDoc[]
   facetValues: { index: number; label: string; count: number }[]
   chartData: ChartData
   lock: { ok: true }

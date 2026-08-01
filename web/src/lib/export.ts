@@ -5,7 +5,34 @@
  * the point of encrypting the corpus in the first place.
  */
 
-import type { SongDetail } from './types'
+import { effectiveScript, nativeRows, pairedRows, rowsToText } from './scriptRows'
+import type { NativeDoc, ScriptChoice, SongDetail } from './types'
+
+/**
+ * How a set resolves each song's script: the reader's default, unless they pinned this
+ * song to something else. Passed in rather than read from the store so the exporters stay
+ * pure and testable.
+ */
+export interface ScriptSelection {
+  choice: ScriptChoice
+  bilingual: boolean
+  overrides?: Record<number, ScriptChoice>
+  docs?: Map<number, NativeDoc>
+}
+
+/** The lyric body for one song, in whichever script the selection resolves to. */
+function lyricsFor(song: SongDetail, selection?: ScriptSelection): string {
+  if (!selection) return song.lyrics
+  const script = effectiveScript(
+    selection.choice,
+    song.nativeScript,
+    selection.overrides?.[song.id] ?? null,
+  )
+  if (script === 'roman') return song.lyrics
+  const doc = selection.docs?.get(song.id)
+  if (!doc || doc.script !== script) return song.lyrics
+  return rowsToText(selection.bilingual ? pairedRows(doc) : nativeRows(doc), selection.bilingual)
+}
 
 const ATTRIBUTION =
   'From the Madhurageetam master copy (Global Organization For Divinity, 18-Sep-2025).'
@@ -27,21 +54,25 @@ function metaLines(song: SongDetail): string[] {
   return lines
 }
 
-export function songToText(song: SongDetail): string {
+export function songToText(song: SongDetail, selection?: ScriptSelection): string {
   return [
     song.title,
     '='.repeat(Math.min(song.title.length, 72)),
     '',
     ...metaLines(song),
     '',
-    song.lyrics,
+    lyricsFor(song, selection),
     '',
     '—',
     ATTRIBUTION,
   ].join('\n')
 }
 
-export function setlistToText(songs: SongDetail[], name: string): string {
+export function setlistToText(
+  songs: SongDetail[],
+  name: string,
+  selection?: ScriptSelection,
+): string {
   const parts: string[] = [
     name || 'Setlist',
     '='.repeat(Math.min((name || 'Setlist').length, 72)),
@@ -60,7 +91,7 @@ export function setlistToText(songs: SongDetail[], name: string): string {
       '─'.repeat(72),
       ...metaLines(song),
       '',
-      song.lyrics,
+      lyricsFor(song, selection),
       '',
     )
   }
@@ -95,10 +126,18 @@ export function safeFilename(text: string, fallback = 'madhurageetam'): string {
 }
 
 /**
- * PDF generation, loaded on demand.
+ * PDF generation, loaded on demand. **Roman only, deliberately.**
  *
- * pdf-lib is ~180 KB, and most visits never export a PDF, so it is imported only when
- * the button is actually pressed.
+ * pdf-lib is ~180 KB, and most visits never export a PDF, so it is imported only when the
+ * button is actually pressed.
+ *
+ * It cannot render the native scripts and should not be made to try. pdf-lib positions
+ * every glyph from its advance width alone and discards GPOS mark attachment, so
+ * Devanagari vowel signs and anusvara, and Tamil above/below marks, land at the baseline
+ * origin instead of on their consonant. The output looks plausible and is wrong — which is
+ * exactly the corruption this whole dataset exists to avoid, and it would cost a few
+ * hundred KB of embedded font to achieve. Native-script export goes through the print
+ * sheet instead, where the browser's own shaper does the work correctly and for free.
  */
 export async function songsToPdf(songs: SongDetail[], title: string): Promise<Blob> {
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')

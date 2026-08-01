@@ -58,9 +58,14 @@ jobs:
         # The index is built by mg/fold.py and queried by fold.ts. If they drift, indexed
         # tokens become unreachable and results silently vanish, so both run the shared
         # fixture on every deploy.
+        #
+        # test_script_shards.py self-skips the half that needs the private source dataset,
+        # so what runs here is the shard-shape and naming contract — including that a
+        # native shard can never be named `lyrics-*`, which would corrupt the Roman
+        # shard lookup in data.worker.ts.
         run: |
           python -m pip install --quiet pytest PyYAML cryptography
-          python -m pytest tests/test_fold.py tests/test_crypto.py -q
+          python -m pytest tests/test_fold.py tests/test_crypto.py tests/test_script_shards.py -q
         working-directory: build
 
       - run: npm run build

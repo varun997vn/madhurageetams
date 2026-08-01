@@ -1,18 +1,34 @@
 import { useEffect, useState } from 'react'
+import { ScriptPicker } from '../components/ScriptPicker'
+import { Sheet } from '../components/Sheet'
 import { downloadPdf, downloadText, safeFilename, setlistToText } from '../lib/export'
+import type { ScriptSelection } from '../lib/export'
+import { effectiveScript } from '../lib/scriptRows'
 import { autoOrder, describeRole } from '../lib/setlist'
 import { getWorker } from '../lib/workerClient'
+import { useScript } from '../state/script'
 import { useSession } from '../state/session'
 import { useSetlist } from '../state/setlist'
-import type { SongDetail } from '../lib/types'
+import { SCRIPT_LABELS, type NativeDoc, type ScriptChoice, type SongDetail } from '../lib/types'
 
-export function SetlistView({ onOpen, onBrowse }: { onOpen: (id: number) => void; onBrowse: () => void }) {
+export function SetlistView({
+  onOpen,
+  onBrowse,
+  onPrint,
+}: {
+  onOpen: (id: number) => void
+  onBrowse: () => void
+  onPrint: () => void
+}) {
   const { meta } = useSession()
   const setlist = useSetlist()
+  const script = useScript()
   const [songs, setSongs] = useState<SongDetail[]>([])
+  const [docs, setDocs] = useState<Map<number, NativeDoc>>(new Map())
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [dragging, setDragging] = useState<number | null>(null)
+  const [pickerFor, setPickerFor] = useState<SongDetail | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -32,6 +48,32 @@ export function SetlistView({ onOpen, onBrowse }: { onOpen: (id: number) => void
     }
   }, [setlist.ids])
 
+  /**
+   * Native rows for whichever songs the current selection will actually render natively.
+   *
+   * A set of 40 songs could otherwise pull every native shard for a download the reader
+   * wanted in Roman, so the filter is what keeps the export cheap.
+   */
+  useEffect(() => {
+    const wanted = songs.filter(
+      (song) =>
+        effectiveScript(script.choice, song.nativeScript, setlist.scripts[song.id] ?? null) !==
+        'roman',
+    )
+    if (wanted.length === 0) {
+      setDocs(new Map())
+      return
+    }
+    let cancelled = false
+    void getWorker()
+      .call('getNative', { ids: wanted.map((s) => s.id) })
+      .then((rows) => !cancelled && setDocs(new Map(rows.map((d) => [d.id, d] as const))))
+      .catch(() => !cancelled && setDocs(new Map()))
+    return () => {
+      cancelled = true
+    }
+  }, [songs, script.choice, setlist.scripts])
+
   if (setlist.ids.length === 0) {
     return (
       <div className="wrap">
@@ -50,6 +92,19 @@ export function SetlistView({ onOpen, onBrowse }: { onOpen: (id: number) => void
   const title = setlist.name || 'Madhurageetam setlist'
   const filename = safeFilename(setlist.name || 'setlist')
   const roles = meta?.roles ?? []
+
+  const selection: ScriptSelection = {
+    choice: script.choice,
+    bilingual: script.bilingual,
+    overrides: setlist.scripts,
+    docs,
+  }
+  // Any song in this set that carries an Indic column at all — if none do, the script
+  // controls have nothing to act on and only add noise.
+  const anyNative = songs.some((s) => s.nativeScript !== null)
+  const nativeCount = songs.filter(
+    (s) => effectiveScript(script.choice, s.nativeScript, setlist.scripts[s.id] ?? null) !== 'roman',
+  ).length
 
   return (
     <div className="wrap" style={{ maxWidth: 860 }}>
@@ -76,13 +131,18 @@ export function SetlistView({ onOpen, onBrowse }: { onOpen: (id: number) => void
         </button>
         <button
           className="btn"
-          onClick={() => downloadText(`${filename}.txt`, setlistToText(songs, title))}
+          onClick={() => downloadText(`${filename}.txt`, setlistToText(songs, title, selection))}
         >
           Download .txt
         </button>
         <button
           className="btn"
           disabled={exporting}
+          title={
+            nativeCount > 0
+              ? 'PDF export is Roman only — use the session sheet for native script'
+              : undefined
+          }
           onClick={async () => {
             setExporting(true)
             try {
@@ -92,10 +152,35 @@ export function SetlistView({ onOpen, onBrowse }: { onOpen: (id: number) => void
             }
           }}
         >
-          {exporting ? 'Preparing…' : 'Download .pdf'}
+          {exporting ? 'Preparing…' : nativeCount > 0 ? 'Download .pdf (Roman)' : 'Download .pdf'}
         </button>
+        <button className="btn" onClick={onPrint}>Session sheet</button>
         <button className="btn btn-ghost" onClick={setlist.clear}>Clear</button>
       </div>
+
+      {anyNative ? (
+        <>
+          <ScriptPicker
+            value={script.choice}
+            available={
+              songs.find((s) => s.nativeScript === script.choice)?.nativeScript ??
+              songs.find((s) => s.nativeScript !== null)?.nativeScript ??
+              null
+            }
+            bilingual={script.bilingual}
+            onChange={script.setChoice}
+            onBilingual={script.setBilingual}
+          />
+          <p className="dim" style={{ fontSize: 12, marginBottom: 12 }}>
+            {nativeCount > 0
+              ? `${nativeCount} of ${songs.length} songs will print in native script. ` +
+                'Tap a song’s script chip to set it individually.'
+              : 'Tap a song’s script chip to set it individually.'}{' '}
+            The master copy prints each song in one Indic script only, so a song without
+            the chosen script stays in Roman.
+          </p>
+        </>
+      ) : null}
 
       <p className="dim" style={{ fontSize: 12, marginBottom: 12 }}>
         Auto-order follows the sampradaya sequence recorded in the master copy — Thodaya
@@ -137,6 +222,25 @@ export function SetlistView({ onOpen, onBrowse }: { onOpen: (id: number) => void
                   ) : null}
                   {song.deity ? <span className="chip chip-muted">{song.deity}</span> : null}
                   {song.ragam[0] ? <span className="chip chip-muted">{song.ragam[0]}</span> : null}
+                  {song.nativeScript ? (
+                    <button
+                      className="chip"
+                      data-pinned={setlist.scripts[song.id] ? 'true' : undefined}
+                      onClick={() => setPickerFor(song)}
+                      aria-label={`Script for ${song.title}`}
+                    >
+                      {
+                        SCRIPT_LABELS[
+                          effectiveScript(
+                            script.choice,
+                            song.nativeScript,
+                            setlist.scripts[song.id] ?? null,
+                          )
+                        ]
+                      }
+                      {setlist.scripts[song.id] ? ' ·' : ''}
+                    </button>
+                  ) : null}
                 </div>
               </div>
               <div className="setlist-move">
@@ -168,6 +272,71 @@ export function SetlistView({ onOpen, onBrowse }: { onOpen: (id: number) => void
           ))}
         </ol>
       )}
+
+      <Sheet
+        open={pickerFor !== null}
+        title="Script for this song"
+        onClose={() => setPickerFor(null)}
+      >
+        {pickerFor ? (
+          <SongScriptOptions
+            song={pickerFor}
+            pinned={setlist.scripts[pickerFor.id] ?? null}
+            fallback={script.choice}
+            onPick={(choice) => {
+              setlist.setScript(pickerFor.id, choice)
+              setPickerFor(null)
+            }}
+          />
+        ) : null}
+      </Sheet>
+    </div>
+  )
+}
+
+/**
+ * Per-song script, for sets that mix languages.
+ *
+ * "Use my default" is stored as the absence of an override rather than as a value, so a
+ * song left on the default follows the reader if they later change it.
+ */
+function SongScriptOptions({
+  song,
+  pinned,
+  fallback,
+  onPick,
+}: {
+  song: SongDetail
+  pinned: ScriptChoice | null
+  fallback: ScriptChoice
+  onPick: (choice: ScriptChoice | null) => void
+}) {
+  const options: { value: ScriptChoice | null; label: string; hint?: string }[] = [
+    {
+      value: null,
+      label: 'Use my default',
+      hint: SCRIPT_LABELS[effectiveScript(fallback, song.nativeScript)],
+    },
+    { value: 'roman', label: SCRIPT_LABELS.roman },
+  ]
+  if (song.nativeScript) {
+    options.push({ value: song.nativeScript, label: SCRIPT_LABELS[song.nativeScript] })
+  }
+
+  return (
+    <div className="script-options">
+      <p className="dim" style={{ fontSize: 13, margin: '0 0 12px' }}>{song.title}</p>
+      {options.map((option) => (
+        <button
+          key={option.label}
+          className="btn"
+          aria-pressed={pinned === option.value}
+          onClick={() => onPick(option.value)}
+        >
+          {option.label}
+          {option.hint ? <span className="dim"> — {option.hint}</span> : null}
+        </button>
+      ))}
     </div>
   )
 }

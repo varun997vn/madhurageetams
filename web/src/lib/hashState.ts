@@ -11,7 +11,7 @@
 import type { FacetName, Filters, SortKey } from './types'
 import { ALL_FACETS } from './types'
 
-export type View = 'home' | 'browse' | 'song' | 'setlist' | 'insights'
+export type View = 'home' | 'browse' | 'song' | 'setlist' | 'insights' | 'print'
 
 export interface AppRoute {
   view: View
@@ -64,6 +64,7 @@ export function parse(hash: string): AppRoute {
   if (segments[0] === 'browse') route.view = 'browse'
   else if (segments[0] === 'setlist') route.view = 'setlist'
   else if (segments[0] === 'insights') route.view = 'insights'
+  else if (segments[0] === 'print') route.view = 'print'
   else if (segments[0] === 'song') {
     route.view = 'song'
     const id = Number(segments[1])
