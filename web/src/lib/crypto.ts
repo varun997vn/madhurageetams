@@ -116,7 +116,8 @@ export async function importAesKey(keyBytes: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', keyBytes as BufferSource, 'AES-GCM', false, ['decrypt'])
 }
 
-async function gunzip(data: Uint8Array): Promise<Uint8Array> {
+/** Also used for the unencrypted native-script shards, which are gzipped but not sealed. */
+export async function gunzip(data: Uint8Array): Promise<Uint8Array> {
   const stream = new Blob([data as BufferSource]).stream().pipeThrough(new DecompressionStream('gzip'))
   return new Uint8Array(await new Response(stream).arrayBuffer())
 }

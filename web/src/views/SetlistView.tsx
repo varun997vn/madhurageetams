@@ -3,7 +3,7 @@ import { ScriptPicker } from '../components/ScriptPicker'
 import { Sheet } from '../components/Sheet'
 import { downloadPdf, downloadText, safeFilename, setlistToText } from '../lib/export'
 import type { ScriptSelection } from '../lib/export'
-import { effectiveScript } from '../lib/scriptRows'
+import { effectiveScript, offersScripts } from '../lib/scriptRows'
 import { autoOrder, describeRole } from '../lib/setlist'
 import { getWorker } from '../lib/workerClient'
 import { useScript } from '../state/script'
@@ -20,9 +20,10 @@ export function SetlistView({
   onBrowse: () => void
   onPrint: () => void
 }) {
-  const { meta } = useSession()
+  const { meta, stats } = useSession()
   const setlist = useSetlist()
   const script = useScript()
+  const hasScripts = offersScripts(stats)
   const [songs, setSongs] = useState<SongDetail[]>([])
   const [docs, setDocs] = useState<Map<number, NativeDoc>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -55,11 +56,13 @@ export function SetlistView({
    * wanted in Roman, so the filter is what keeps the export cheap.
    */
   useEffect(() => {
-    const wanted = songs.filter(
-      (song) =>
-        effectiveScript(script.choice, song.nativeScript, setlist.scripts[song.id] ?? null) !==
-        'roman',
-    )
+    const wanted = !hasScripts
+      ? []
+      : songs.filter(
+          (song) =>
+            effectiveScript(script.choice, song.nativeScript, setlist.scripts[song.id] ?? null) !==
+            'roman',
+        )
     if (wanted.length === 0) {
       setDocs(new Map())
       return
@@ -72,7 +75,7 @@ export function SetlistView({
     return () => {
       cancelled = true
     }
-  }, [songs, script.choice, setlist.scripts])
+  }, [songs, script.choice, setlist.scripts, hasScripts])
 
   if (setlist.ids.length === 0) {
     return (
@@ -99,9 +102,9 @@ export function SetlistView({
     overrides: setlist.scripts,
     docs,
   }
-  // Any song in this set that carries an Indic column at all — if none do, the script
-  // controls have nothing to act on and only add noise.
-  const anyNative = songs.some((s) => s.nativeScript !== null)
+  // Any song in this set that carries an Indic column at all — if none do, or if this
+  // build ships no native data, the script controls have nothing to act on.
+  const anyNative = hasScripts && songs.some((s) => s.nativeScript !== null)
   const nativeCount = songs.filter(
     (s) => effectiveScript(script.choice, s.nativeScript, setlist.scripts[s.id] ?? null) !== 'roman',
   ).length
@@ -222,7 +225,7 @@ export function SetlistView({
                   ) : null}
                   {song.deity ? <span className="chip chip-muted">{song.deity}</span> : null}
                   {song.ragam[0] ? <span className="chip chip-muted">{song.ragam[0]}</span> : null}
-                  {song.nativeScript ? (
+                  {hasScripts && song.nativeScript ? (
                     <button
                       className="chip"
                       data-pinned={setlist.scripts[song.id] ? 'true' : undefined}

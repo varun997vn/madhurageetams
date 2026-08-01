@@ -91,8 +91,7 @@ export interface NativeDoc extends NativeSong {
 export interface NativeShard {
   version: number
   name: string
-  firstSlot: number
-  lastSlot: number
+  /** This shard's own song ids, so lookup never depends on the encrypted corpus's slots. */
   ids: number[]
   songs: {
     s: NativeScriptTag | null
@@ -103,11 +102,28 @@ export interface NativeShard {
   }[]
 }
 
-/** ~1 KB, slot-indexed, fetched eagerly: the picker must know what a song offers before
- *  deciding whether a multi-megabyte native shard is worth fetching. */
-export interface NativeMap {
+export interface NativeShardEntry {
+  name: string
+  url: string
+  /** Inclusive range of positions in `NativeIndex.ids` that this shard covers. */
+  first: number
+  last: number
+  bytes: number
+  sha256: string
+}
+
+/**
+ * ~59 KB, fetched eagerly and unencrypted.
+ *
+ * The picker has to know what a song offers before deciding whether a multi-megabyte shard
+ * is worth fetching, and `language` does not predict script here — a Telugu song is printed
+ * in Devanagari. Positions index into `ids`; nothing here is tied to corpus slot numbering.
+ */
+export interface NativeIndex {
   version: number
   count: number
+  ids: number[]
+  shards: NativeShardEntry[]
   /** 0 = none, 1 = devanagari, 2 = tamil. */
   script: number[]
   unverified: number[]
@@ -225,4 +241,8 @@ export interface CorpusStats {
   languages: number
   occasions: number
   built: string
+  /** Whether this deployment actually ships native-script lyrics. When false the picker is
+   *  not rendered at all, so a Roman-only build looks like one instead of showing controls
+   *  that cannot do anything. */
+  nativeScripts: boolean
 }

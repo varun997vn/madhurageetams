@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { ScriptPicker } from '../components/ScriptPicker'
 import { downloadPdf, downloadText, safeFilename, songToText } from '../lib/export'
-import { effectiveScript, langTag, pairedRows, nativeRows, type DisplayRow } from '../lib/scriptRows'
+import {
+  effectiveScript,
+  langTag,
+  nativeRows,
+  offersScripts,
+  pairedRows,
+  type DisplayRow,
+} from '../lib/scriptRows'
 import { getWorker } from '../lib/workerClient'
 import { useScript } from '../state/script'
 import { useSession } from '../state/session'
@@ -22,9 +29,10 @@ interface Props {
 }
 
 export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
-  const { meta } = useSession()
+  const { meta, stats } = useSession()
   const setlist = useSetlist()
   const script = useScript()
+  const hasScripts = offersScripts(stats)
   const [song, setSong] = useState<Song | null>(null)
   const [native, setNative] = useState<NativeDoc | null>(null)
   const [missing, setMissing] = useState(false)
@@ -53,7 +61,8 @@ export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
    * This is the one call that pulls a native shard, so the guard below is what keeps a
    * Roman-only reader from ever downloading several megabytes they do not want.
    */
-  const wantsNative = script.choice !== 'roman' && song?.nativeScript === script.choice
+  const wantsNative =
+    hasScripts && script.choice !== 'roman' && song?.nativeScript === script.choice
   useEffect(() => {
     if (!wantsNative) {
       setNative(null)
@@ -193,19 +202,22 @@ export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
           </button>
         </div>
 
-        <ScriptPicker
-          value={script.choice}
-          available={song.nativeScript}
-          bilingual={script.bilingual}
-          onChange={script.setChoice}
-          onBilingual={script.setBilingual}
-        />
+        {hasScripts ? (
+          <ScriptPicker
+            value={script.choice}
+            available={song.nativeScript}
+            bilingual={script.bilingual}
+            onChange={script.setChoice}
+            onBilingual={script.setBilingual}
+          />
+        ) : null}
 
         <LyricsPanel
           song={song}
           native={native}
-          choice={script.choice}
+          choice={hasScripts ? script.choice : 'roman'}
           bilingual={script.bilingual}
+          explain={hasScripts}
         />
 
         {song.catalog.length > 0 ? (
@@ -237,11 +249,15 @@ function LyricsPanel({
   native,
   choice,
   bilingual,
+  explain,
 }: {
   song: Song
   native: NativeDoc | null
   choice: ScriptChoice
   bilingual: boolean
+  /** False when this build ships no native data. Every note below would then be a claim
+   *  about the corpus that is really a fact about the deployment, so none are shown. */
+  explain: boolean
 }) {
   const effective = effectiveScript(choice, song.nativeScript)
 
@@ -262,7 +278,7 @@ function LyricsPanel({
         </div>
       )}
 
-      <ScriptNote song={song} choice={choice} effective={effective} />
+      {explain ? <ScriptNote song={song} choice={choice} effective={effective} /> : null}
     </>
   )
 }

@@ -76,10 +76,9 @@ def main() -> int:
         if code == "20":
             cmd.append("--strict")
         if code == "35":
-            # --strict pins slot order against the core bundle stage 30 just wrote.
             # --skip-missing keeps the Roman-only pipeline usable without the private
             # source repo, which not every contributor will have.
-            cmd += ["--strict", "--skip-missing"]
+            cmd.append("--skip-missing")
         if code == "40":
             cmd += ["--revision", rev]
             if args.generate_password:

@@ -6,8 +6,9 @@ searchable inside the lyrics, with per-song and setlist downloads.
 
 Live at **https://varun997vn.github.io/madhurageetams/**
 
-The source is a 9,526-page PDF. This repo turns it into structured data, encrypts that
-data, and ships a client that decrypts it in the browser.
+The source is a 9,526-page PDF. This repo turns it into structured data, encrypts most of
+it, and ships a client that decrypts it in the browser. The native-script lyrics are the
+one deliberate exception — see [Security](#security).
 
 ---
 
@@ -40,7 +41,7 @@ build/          Python pipeline — runs offline, never in CI
   10_parse_songs.py     -> interim/songs.json + parse_report.json
   20_enrich.py          + rules/*.yaml -> interim/songs_enriched.json
   30_build_bundles.py   -> interim/bundles/{core,index,lyrics-NN}.json
-  35_build_script_shards.py  native scripts from $MG_SOURCE -> native-NN + nativemap
+  35_build_script_shards.py  native scripts from $MG_SOURCE -> web/public/data (plaintext)
   40_pack.py            gzip + AES-256-GCM -> web/public/data/*.enc
   run_all.py            orchestrator with stage skipping
   rules/                occasions.yaml, aliases.yaml, roles.yaml  <- edit these
@@ -48,7 +49,8 @@ build/          Python pipeline — runs offline, never in CI
   tests/                pytest
 fixtures/       Shared by pytest AND vitest, so the two sides cannot drift
 web/            Vite + React + TypeScript app
-  public/data/  Committed encrypted artifacts (34 shards + manifest)
+  public/data/  Committed artifacts: 34 encrypted shards + manifest,
+                and the plaintext native-script index and shards
   src/worker/   Owns the key, the corpus, the facet bitmaps and search
   e2e/smoke.mjs Playwright pass over a production build
 ```
@@ -77,11 +79,11 @@ with HarfBuzz against the same embedded font, accepting a reading only when the 
 glyph sequence matches the stored glyphs exactly. Measured round trip: **99.9958%**. The
 61 songs with an unresolved glyph run are flagged in the UI rather than presented as fact.
 
-Both extractions read a byte-identical PDF and are joined **by song id**. That join is
-asserted, not assumed: `35_build_script_shards.py` compares its derived slot order against
-this pipeline's own `core.json` position by position, and `tests/test_script_shards.py`
-re-checks the two ids that `test_parse.py` pins plus every `spot_check` id in
-`rules/occasions.yaml`.
+Both extractions read a byte-identical PDF and are joined **by song id**, carried explicitly
+in the shipped data rather than inferred from a shared ordering. `tests/test_script_shards.py`
+re-checks the two ids that `test_parse.py` pins, every `spot_check` id in
+`rules/occasions.yaml`, and — when `interim/bundles/core.json` is present — that the two
+extractions cover the same 7,898 songs.
 
 Three consequences worth knowing before changing any of this:
 
@@ -96,9 +98,37 @@ Three consequences worth knowing before changing any of this:
   ordinary DOM plus `@media print` — the browser's own shaper does it correctly, and it
   costs no embedded font.
 
-Payload: the native shards add **7.0 MB gzipped**, fetched only when a reader actually
-selects a native script — never in the speculative prefetch. A ~1 KB `nativemap` shard
-loads eagerly so the picker knows what each song offers without touching a big shard.
+### How the native data ships
+
+Unlike the rest of the corpus, the native-script lyrics are **not encrypted** — a deliberate
+decision by the copyright holder, so that the feature needs no password-bearing build step.
+See [Security](#security) for what that does and does not change.
+
+| | |
+|---|---|
+| `web/public/data/native-index.json` | ~59 KB, plaintext, fetched eagerly. Song ids, shard ranges, per-song script, checksums. |
+| `web/public/data/native-NN.json.gz` | 32 shards, 7.0 MB total, fetched only when a reader selects a native script. |
+
+Gzipped on disk because the raw JSON is 26 MB, which would take the built artifact past the
+20 MB ceiling `deploy.yml` asserts. Pages gzips JSON over the wire regardless, so this costs
+nothing in transfer.
+
+Everything here is keyed by **song id**, not by the slot numbering the encrypted bundles
+use. Those are slot-indexed because they come from a single sorted pass over the parsed PDF;
+these come from a different extraction, so a shared ordering would be an assumption to
+verify rather than a fact. Carrying the ids makes the join explicit — and removes any
+dependency on `core.json`, and therefore on the 12-minute PDF extraction that produces it.
+
+Because they are absent from `manifest.json`, `prefetchLyrics()` cannot reach them: a reader
+who never picks a native script cannot download 7 MB of Indic text even by accident.
+
+If a build ships without this data, `stats.nativeScripts` goes false and the script picker
+is **not rendered at all**, so the site looks like the Roman-only one it is. That matters:
+an earlier deploy shipped the code without the data, and every song then showed a disabled
+Devanagari button whose tooltip said the master copy does not print that song in
+Devanagari — a claim about the corpus standing in for a fact about the deployment.
+`deploy.yml` now fails rather than shipping that state; set the repository variable
+`ROMAN_ONLY=1` to deploy without native scripts on purpose.
 
 ## Rebuilding
 
@@ -117,6 +147,15 @@ MG_PASSWORD='…' MG_SOURCE=/path/to/madhurageetams-source/data \
 `MG_SOURCE` points at the private source dataset that supplies the native scripts. Without
 it, stage 35 prints a skip and the rest of the pipeline produces the Roman-only site
 exactly as before — so a contributor who only has this repository can still rebuild.
+
+**Regenerating only the native scripts** needs neither the PDF nor the password, because
+they are unencrypted and joined by song id:
+
+```bash
+cd build
+MG_SOURCE=/path/to/madhurageetams-source/data python 35_build_script_shards.py
+git add web/public/data && git commit
+```
 
 `00` is the only slow step. Everything downstream reads `build/cache/pages.jsonl`, so
 after the first extraction a full rebuild is seconds.
@@ -179,7 +218,18 @@ drift fails the build. If a change is intentional, update the constant *and* say
 Pages site is publicly reachable even from a private repo. So the gate is not a
 JavaScript password check — it can't be, since anyone can read the page source. Instead
 the *data itself* is encrypted with AES-256-GCM and the shipped HTML/JS is useless
-without the key. Only the encrypted shards are ever published.
+without the key.
+
+**Except the native-script lyrics, which are published in the clear.** `native-index.json`
+and `native-NN.json.gz` are committed unencrypted at the copyright holder's direction, so
+the Devanagari and Tamil columns — and the Roman column that travels beside them for the
+side-by-side view — are readable by anyone with the repository URL, no password involved.
+This is a deliberate trade for not needing a password-bearing build step, and it is
+irreversible in the usual git sense: removing the files in a later commit does not remove
+them from history, exactly as `SOURCE.md` says of the PDF. The encrypted shards still gate
+the search index, the facets and the Roman lyrics of the 7,892 songs reachable through
+them, so the password is not pointless — but it no longer gates the whole corpus, and this
+paragraph exists so nobody assumes it does.
 
 **The honest threat model.** Every ciphertext is publicly downloadable, so an attacker
 brute-forces offline at whatever rate their hardware allows, unconstrained by anything

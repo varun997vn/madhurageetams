@@ -71,9 +71,16 @@ jobs:
       - run: npm run build
         working-directory: web
 
-      - name: Verify the encrypted data shipped
+      - name: Verify the data shipped
         # public/data is committed, so the likeliest silent failure is deploying an app
         # with no corpus behind it. Assert shape and size before publishing.
+        #
+        # The native-script check exists because that failure already happened: the app was
+        # deployed with the code but without the native data, and every song then showed a
+        # dead Devanagari button. The counts here pass at exactly 34 shards, so nothing
+        # caught it. Set ROMAN_ONLY=1 to deploy without native scripts deliberately.
+        env:
+          ROMAN_ONLY: ${{ vars.ROMAN_ONLY }}
         run: |
           cd web/dist
           test -f data/manifest.json || { echo "::error::manifest.json missing"; exit 1; }
@@ -83,7 +90,25 @@ jobs:
           [ "$count" -ge 34 ] || { echo "::error::only $count .enc shards found, expected >= 34"; exit 1; }
           bytes=$(du -sb . | cut -f1)
           [ "$bytes" -lt 20971520 ] || { echo "::error::artifact is $bytes bytes, over the 20 MB budget"; exit 1; }
-          echo "OK: $songs songs, $count shards, $bytes bytes"
+
+          set +e
+          python ../../build/tools/verify_native_data.py data
+          native=$?
+          set -e
+          if [ "$native" = "1" ]; then
+            exit 1
+          elif [ "$native" = "2" ] && [ "$ROMAN_ONLY" != "1" ]; then
+            echo "::error::data/native-index.json is missing, so the site would ship with the"
+            echo "::error::script picker hidden and no Devanagari or Tamil lyrics. Regenerate with:"
+            echo "::error::  cd build && MG_SOURCE=/path/to/madhurageetams-source/data python 35_build_script_shards.py"
+            echo "::error::then commit web/public/data. To deploy Roman-only on purpose, set the"
+            echo "::error::repository variable ROMAN_ONLY=1."
+            exit 1
+          elif [ "$native" = "2" ]; then
+            echo "::warning::deploying without native scripts (ROMAN_ONLY=1)"
+          fi
+
+          echo "OK: $songs songs, $count encrypted shards, $bytes bytes"
 
       - name: Ensure .nojekyll
         # Without it, GitHub Pages drops Vite's _-prefixed asset paths.
