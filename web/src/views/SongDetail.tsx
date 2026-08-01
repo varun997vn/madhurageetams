@@ -205,7 +205,7 @@ export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
         {hasScripts ? (
           <ScriptPicker
             value={script.choice}
-            available={song.nativeScript}
+            available={song.nativeScript ? [song.nativeScript] : []}
             bilingual={script.bilingual}
             onChange={script.setChoice}
             onBilingual={script.setBilingual}

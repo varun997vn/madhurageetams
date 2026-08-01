@@ -102,9 +102,13 @@ export function SetlistView({
     overrides: setlist.scripts,
     docs,
   }
-  // Any song in this set that carries an Indic column at all — if none do, or if this
-  // build ships no native data, the script controls have nothing to act on.
-  const anyNative = hasScripts && songs.some((s) => s.nativeScript !== null)
+  // The union of Indic scripts across the set, in a stable order. A set that mixes Tamil
+  // and Sanskrit songs offers both; one that is all Tamil offers only Tamil, so the reader
+  // is never given a choice that would silently resolve to Roman.
+  const setScripts = (['devanagari', 'tamil'] as const).filter((s) =>
+    songs.some((song) => song.nativeScript === s),
+  )
+  const anyNative = hasScripts && setScripts.length > 0
   const nativeCount = songs.filter(
     (s) => effectiveScript(script.choice, s.nativeScript, setlist.scripts[s.id] ?? null) !== 'roman',
   ).length
@@ -165,14 +169,11 @@ export function SetlistView({
         <>
           <ScriptPicker
             value={script.choice}
-            available={
-              songs.find((s) => s.nativeScript === script.choice)?.nativeScript ??
-              songs.find((s) => s.nativeScript !== null)?.nativeScript ??
-              null
-            }
+            available={setScripts}
             bilingual={script.bilingual}
             onChange={script.setChoice}
             onBilingual={script.setBilingual}
+            label="Read this set in"
           />
           <p className="dim" style={{ fontSize: 12, marginBottom: 12 }}>
             {nativeCount > 0

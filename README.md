@@ -60,9 +60,11 @@ web/            Vite + React + TypeScript app
 ## Scripts
 
 The master copy prints every song's Roman transliteration beside **exactly one** Indic
-script — Tamil for Tamil-language songs, Devanagari for everything else. So the reader
-picks Roman, Devanagari or Tamil, and the option a given song does not carry is shown
-disabled rather than hidden.
+script — Tamil for Tamil-language songs, Devanagari for everything else. The picker is a
+native `<select>` that lists **only the scripts the song in front of you actually has**:
+Roman plus Devanagari, or Roman plus Tamil, and nothing at all for the six songs with no
+Indic column. Offering all three and disabling two was the first attempt, and it read as
+broken rather than as not-applicable.
 
 **There is no Telugu, Kannada or Malayalam option, and there cannot be one.** A Telugu song
 is *printed in Devanagari* in this document. 993 songs are Telugu-language and 773 are
