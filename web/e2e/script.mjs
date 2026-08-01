@@ -60,10 +60,12 @@ const waitForScript = (page, script) =>
     { timeout: 30_000 },
   )
 
-// The three script choices live in the segmented control; the bilingual toggle is its own
-// button beside it. Matching them separately keeps "Roman" from also matching "+ Roman".
-const scriptButton = (page, label) =>
-  page.locator('.script-toggle .scope-toggle button', { hasText: label })
+// The picker is a native <select> listing only the scripts a song actually carries, so an
+// option being *absent* is the assertion — there are no disabled controls to inspect.
+const scriptOptions = (page) =>
+  page.locator('.script-select select option').allTextContents()
+
+const selectScript = (page, value) => page.selectOption('.script-select select', value)
 
 const bilingualButton = (page) => page.locator('.script-toggle > button')
 
@@ -140,10 +142,12 @@ try {
   await page.goto(`${BASE}#/song/${DEVANAGARI_SONG}`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.lyrics')
   check('Roman is the default', (await page.getAttribute('.lyrics', 'data-script')) === 'roman')
-  check('Devanagari is offered', await scriptButton(page, 'Devanagari').isEnabled())
-  check('Tamil is disabled here', !(await scriptButton(page, 'Tamil').isEnabled()))
+  const devaOptions = await scriptOptions(page)
+  check('Devanagari is listed', devaOptions.includes('Devanagari'), devaOptions.join(' / '))
+  check('Tamil is not listed here', !devaOptions.includes('Tamil'), devaOptions.join(' / '))
+  check('only the scripts this song has are offered', devaOptions.length === 2)
 
-  await scriptButton(page, 'Devanagari').click()
+  await selectScript(page, 'devanagari')
   await waitForScript(page, 'devanagari')
   check('a native shard is fetched on demand', nativeShardRequests().length > 0)
 
@@ -193,8 +197,10 @@ try {
   // --- Tamil ------------------------------------------------------------------------
   await page.goto(`${BASE}#/song/${TAMIL_SONG}`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.script-toggle')
-  check('Tamil is offered on a Tamil song', await scriptButton(page, 'Tamil').isEnabled())
-  await scriptButton(page, 'Tamil').click()
+  const tamilOptions = await scriptOptions(page)
+  check('Tamil is listed on a Tamil song', tamilOptions.includes('Tamil'), tamilOptions.join(' / '))
+  check('Devanagari is not listed there', !tamilOptions.includes('Devanagari'))
+  await selectScript(page, 'tamil')
   await waitForScript(page, 'tamil')
   const tamil = await page.evaluate((pattern) => {
     const el = document.querySelector('.lyrics')
@@ -211,10 +217,9 @@ try {
 
   // --- a song with no Indic column ---------------------------------------------------
   await page.goto(`${BASE}#/song/${ROMAN_ONLY_SONG}`, { waitUntil: 'networkidle' })
-  await page.waitForSelector('.script-toggle')
-  check('both native options disabled on a Roman-only song',
-    !(await scriptButton(page, 'Devanagari').isEnabled()) &&
-      !(await scriptButton(page, 'Tamil').isEnabled()))
+  await page.waitForSelector('.lyrics')
+  check('no picker at all on a Roman-only song',
+    (await page.locator('.script-toggle').count()) === 0)
   check('and it says why', (await page.locator('.script-note').count()) > 0)
 
   // --- the set builder ----------------------------------------------------------------
@@ -314,7 +319,7 @@ try {
   await unlock(small)
   await small.goto(`${BASE}#/song/${DEVANAGARI_SONG}`, { waitUntil: 'networkidle' })
   await small.waitForSelector('.script-toggle')
-  await scriptButton(small, 'Devanagari').tap()
+  await selectScript(small, 'devanagari')
   await waitForScript(small, 'devanagari')
   await small.screenshot({ path: `${SHOTS}/devanagari-phone.png` })
 
@@ -329,7 +334,7 @@ try {
   check('no horizontal overflow on a phone', overflow <= 0, `${overflow}px`)
 
   const targets = await small.evaluate(() =>
-    [...document.querySelectorAll('.script-toggle button')]
+    [...document.querySelectorAll('.script-toggle select, .script-toggle button')]
       .map((b) => {
         const r = b.getBoundingClientRect()
         return Math.min(r.height, r.width)
@@ -338,11 +343,11 @@ try {
   check('picker touch targets reach 44px', Math.min(...targets) >= 44,
     `min ${Math.min(...targets).toFixed(1)}px`)
 
-  const inputs = await small.evaluate(() =>
-    [...document.querySelectorAll('.script-toggle button')]
-      .map((b) => parseFloat(getComputedStyle(b).fontSize)))
-  check('picker labels are legible on a phone', Math.min(...inputs) >= 13,
-    `min ${Math.min(...inputs)}px`)
+  // 16px on the select specifically: anything smaller makes iOS zoom on focus and stay
+  // zoomed, which is the rule the rest of the mobile layer already holds to.
+  const selectSize = await small.evaluate(() =>
+    parseFloat(getComputedStyle(document.querySelector('.script-select select')).fontSize))
+  check('the select is 16px so iOS does not zoom', selectSize >= 16, `${selectSize}px`)
   await small.screenshot({ path: `${SHOTS}/side-by-side-phone.png` })
 } finally {
   await browser.close()
