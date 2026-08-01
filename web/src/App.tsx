@@ -7,6 +7,7 @@ import { useSetlist } from './state/setlist'
 import { Browse } from './views/Browse'
 import { Insights } from './views/Insights'
 import { OccasionFinder } from './views/OccasionFinder'
+import { PrintSheet } from './views/PrintSheet'
 import { SetlistView } from './views/SetlistView'
 import { SongDetailView } from './views/SongDetail'
 import { UnlockGate, UnsupportedBrowser } from './views/UnlockGate'
@@ -178,7 +179,12 @@ export function App() {
           <SetlistView
             onOpen={(id) => go({ ...route, view: 'song', songId: id })}
             onBrowse={() => go({ ...route, view: 'browse' })}
+            onPrint={() => go({ ...route, view: 'print', songId: undefined })}
           />
+        ) : null}
+
+        {route.view === 'print' ? (
+          <PrintSheet onBack={() => go({ ...route, view: 'setlist', songId: undefined })} />
         ) : null}
 
         {route.view === 'insights' ? (

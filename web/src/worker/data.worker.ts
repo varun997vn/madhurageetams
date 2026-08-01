@@ -20,6 +20,7 @@ import {
   WrongPasswordError,
   type Manifest,
 } from '../lib/crypto'
+import { decodeSong } from '../lib/scriptRows'
 import {
   ALL_FACETS,
   type CoreBundle,
@@ -28,6 +29,10 @@ import {
   type Filters,
   type IndexBundle,
   type LyricShard,
+  type NativeDoc,
+  type NativeMap,
+  type NativeScript,
+  type NativeShard,
   type QueryRequest,
   type QueryResponse,
   type ResultRow,
@@ -48,7 +53,11 @@ let cryptoKey: CryptoKey | null = null
 let store: Store | null = null
 let engine: SearchEngine | null = null
 const lyricShards = new Map<string, LyricShard>()
+const nativeShards = new Map<string, NativeShard>()
+let nativeMap: NativeMap | null = null
 let prefetching = false
+
+const NATIVE_SCRIPTS: (NativeScript | null)[] = [null, 'devanagari', 'tamil']
 
 function emit(event: WorkerEvent): void {
   ctx.postMessage({ event } satisfies RpcReply)
@@ -102,6 +111,7 @@ async function loadCore(): Promise<void> {
   store = new Store(core)
   engine = new SearchEngine(store)
   engine.setSynonyms((siteMeta as SiteMeta).synonyms ?? {})
+  await ensureNativeMap()
   emit({ kind: 'progress', phase: 'core', loaded: 1, total: 1 })
   emit({ kind: 'ready' })
   void prefetchLyrics()
@@ -123,6 +133,9 @@ async function prefetchLyrics(): Promise<void> {
   if (connection?.effectiveType && !/4g/.test(connection.effectiveType)) return
 
   const m = await fetchManifest()
+  // `lyrics-` only, deliberately. The native-script shards are several megabytes and are
+  // useless to a reader who never switches script, so they are fetched on demand and must
+  // never be swept into this speculative warm.
   const names = m.shards.filter((s) => s.name.startsWith('lyrics-')).map((s) => s.name)
   let done = 0
   const queue = [...names]
@@ -175,6 +188,52 @@ async function lyricsFor(slot: number): Promise<string> {
   return shard.lyrics[slot - shard.firstSlot] ?? ''
 }
 
+/**
+ * The ~1 KB availability map, loaded eagerly.
+ *
+ * Without it the script picker could not know whether a song has a native column at all
+ * without pulling a multi-megabyte shard, so it would either guess or download blindly.
+ * Failure is tolerated: an older data build has no map, and the site then behaves exactly
+ * as it did before native scripts existed.
+ */
+async function ensureNativeMap(): Promise<void> {
+  if (nativeMap) return
+  try {
+    nativeMap = (await fetchShard('nativemap')) as NativeMap
+  } catch {
+    nativeMap = null
+  }
+}
+
+async function nativeShardForSlot(slot: number): Promise<NativeShard | null> {
+  const m = await fetchManifest()
+  for (const entry of m.shards) {
+    if (!entry.name.startsWith('native-')) continue
+    const cached = nativeShards.get(entry.name)
+    if (cached && slot >= cached.firstSlot && slot <= cached.lastSlot) return cached
+  }
+  const total = m.shards.filter((s) => s.name.startsWith('native-')).length
+  if (total === 0) return null
+  // Same contiguous, evenly sized split as the lyric shards, so this stays arithmetic.
+  const per = Math.ceil(store!.count / total)
+  const name = `native-${String(Math.floor(slot / per)).padStart(2, '0')}`
+  if (!nativeShards.has(name)) {
+    try {
+      nativeShards.set(name, (await fetchShard(name)) as NativeShard)
+    } catch {
+      return null
+    }
+  }
+  return nativeShards.get(name) ?? null
+}
+
+async function nativeFor(slot: number): Promise<NativeDoc | null> {
+  const shard = await nativeShardForSlot(slot)
+  const entry = shard?.songs[slot - shard.firstSlot]
+  if (!entry) return null
+  return { id: store!.core.ids[slot]!, slot, ...decodeSong(entry) }
+}
+
 async function ensureIndex(): Promise<boolean> {
   if (engine!.hasIndex()) return true
   emit({ kind: 'progress', phase: 'index', loaded: 0, total: 1 })
@@ -190,6 +249,10 @@ async function ensureIndex(): Promise<boolean> {
 
 function detailFor(slot: number, lyrics: string): SongDetail {
   const core = store!.core
+  // Both fields come from the tiny native map, so a song detail never blocks on a shard.
+  // Defaulting to "no native script, verified" keeps a data build without the map behaving
+  // exactly as it did before.
+  const scriptCode = nativeMap?.script[slot] ?? 0
   return {
     slot,
     id: core.ids[slot]!,
@@ -208,6 +271,8 @@ function detailFor(slot: number, lyrics: string): SongDetail {
     roleOrder: core.roleOrder[slot]! >= 0 ? core.roleOrder[slot]! : null,
     page: core.page[slot]!,
     lyrics,
+    nativeScript: NATIVE_SCRIPTS[scriptCode] ?? null,
+    scriptVerified: !nativeMap?.unverified.includes(slot),
   }
 }
 
@@ -471,6 +536,17 @@ ctx.onmessage = async (event: MessageEvent<RpcCall>) => {
         result = out
         break
       }
+      case 'getNative': {
+        const out: NativeDoc[] = []
+        for (const id of (params as { ids: number[] }).ids) {
+          const slot = store!.slotById.get(id)
+          if (slot === undefined) continue
+          const doc = await nativeFor(slot)
+          if (doc) out.push(doc)
+        }
+        result = out
+        break
+      }
       case 'facetValues': {
         const p = params as { facet: string; prefix: string; limit: number }
         const dict = store!.core.dicts[p.facet as FacetName] ?? []
@@ -492,6 +568,8 @@ ctx.onmessage = async (event: MessageEvent<RpcCall>) => {
         store = null
         engine = null
         lyricShards.clear()
+        nativeShards.clear()
+        nativeMap = null
         result = { ok: true }
         break
       default:

@@ -45,6 +45,75 @@ export interface LyricShard {
   lyrics: string[]
 }
 
+/* --------------------------------------------------------------- native scripts ----
+ * The master copy prints every song's Roman transliteration beside exactly one Indic
+ * script — Tamil for Tamil-language songs, Devanagari for everything else. No song has
+ * both, and no song is printed in Telugu, Kannada or Malayalam script, so a Telugu song
+ * appears here as `devanagari`. Nothing is transliterated: this is what the page shows.
+ */
+
+export type NativeScript = 'devanagari' | 'tamil'
+export type ScriptChoice = 'roman' | NativeScript
+
+/** `deva`/`taml` as stored in the shard; widened to NativeScript on the way out. */
+export type NativeScriptTag = 'deva' | 'taml'
+
+export const SCRIPT_LABELS: Record<ScriptChoice, string> = {
+  roman: 'Roman',
+  devanagari: 'Devanagari',
+  tamil: 'Tamil',
+}
+
+/** `[isHeading, text]` — headings are the structural markers (pallavi, charaNam, the
+ *  ragam/thalam line), which the source records only in the Roman column. */
+export type RomanRow = [0 | 1, string]
+
+/** `[romanIndex, nativeIndex]` into a song's `roman`/`native` arrays; -1 where a row has
+ *  no counterpart, which happens for 17.8% of rows because the two columns wrap
+ *  differently. */
+export type RowPair = [number, number]
+
+export interface NativeSong {
+  /** null for the six English songs, which have no Indic column at all. */
+  script: NativeScript | null
+  roman: RomanRow[]
+  native: string[]
+  pairs: RowPair[]
+  /** false for the 61 songs with a glyph run that could not be machine-verified. */
+  verified: boolean
+}
+
+export interface NativeDoc extends NativeSong {
+  id: number
+  slot: number
+}
+
+export interface NativeShard {
+  version: number
+  name: string
+  firstSlot: number
+  lastSlot: number
+  ids: number[]
+  songs: {
+    s: NativeScriptTag | null
+    rom: RomanRow[]
+    nat: string[]
+    pair: RowPair[]
+    v: 0 | 1
+  }[]
+}
+
+/** ~1 KB, slot-indexed, fetched eagerly: the picker must know what a song offers before
+ *  deciding whether a multi-megabyte native shard is worth fetching. */
+export interface NativeMap {
+  version: number
+  count: number
+  /** 0 = none, 1 = devanagari, 2 = tamil. */
+  script: number[]
+  unverified: number[]
+  romanEmpty: number[]
+}
+
 export interface OccasionMeta {
   id: string
   label: string
@@ -141,6 +210,10 @@ export interface SongDetail {
   roleOrder: number | null
   page: number
   lyrics: string
+  /** Which Indic script the master copy prints this song in, or null if none. Comes from
+   *  the ~1 KB native map, so it costs nothing and is available before any shard fetch. */
+  nativeScript: NativeScript | null
+  scriptVerified: boolean
 }
 
 export interface CorpusStats {

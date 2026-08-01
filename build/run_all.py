@@ -27,6 +27,7 @@ STAGES = [
     ("10", "10_parse_songs.py", "parse song records"),
     ("20", "20_enrich.py", "canonicalise facets, derive occasions"),
     ("30", "30_build_bundles.py", "build core / index / lyric shards"),
+    ("35", "35_build_script_shards.py", "native-script shards from $MG_SOURCE"),
     ("40", "40_pack.py", "gzip + encrypt -> web/public/data"),
 ]
 
@@ -74,6 +75,11 @@ def main() -> int:
             cmd.append("--force")
         if code == "20":
             cmd.append("--strict")
+        if code == "35":
+            # --strict pins slot order against the core bundle stage 30 just wrote.
+            # --skip-missing keeps the Roman-only pipeline usable without the private
+            # source repo, which not every contributor will have.
+            cmd += ["--strict", "--skip-missing"]
         if code == "40":
             cmd += ["--revision", rev]
             if args.generate_password:
