@@ -82,17 +82,59 @@ try {
   const consoleErrors = []
   page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 
+  // Whether this build ships native data at all. Everything below branches on it, so the
+  // suite is meaningful against a Roman-only deployment too — and the invariant that the
+  // picker appears if and only if the data is there gets checked in both directions.
+  // Not just `ok()`: a static host with an SPA fallback answers 200 with index.html for a
+  // missing file, so the body has to be inspected before it can be believed.
+  let nativeIndex = null
+  try {
+    const indexResponse = await page.request.get(new URL('data/native-index.json', BASE).href)
+    if (indexResponse.ok()) {
+      const doc = JSON.parse(await indexResponse.text())
+      if (Array.isArray(doc?.ids) && Array.isArray(doc?.shards)) nativeIndex = doc
+    }
+  } catch {
+    nativeIndex = null
+  }
+  const hasNative = nativeIndex !== null
+  console.log(
+    hasNative
+      ? `native data present: ${nativeIndex.count} songs, ${nativeIndex.shards.length} shards`
+      : 'native data absent — checking the degraded path only',
+  )
+
   await unlock(page)
   check('unlocks with the corpus password', true)
 
   await page.waitForTimeout(1500)
-  const nativeShardRequests = () => requested.filter((u) => /native-\d\d\.enc/.test(u))
-  check('native map is fetched eagerly', requested.some((u) => u.includes('nativemap.enc')))
+  const nativeShardRequests = () => requested.filter((u) => /native-\d\d\.json\.gz/.test(u))
+  check(
+    'native index is fetched eagerly' + (hasNative ? '' : ' (n/a)'),
+    hasNative ? requested.some((u) => u.includes('native-index.json')) : true,
+  )
   check(
     'no native shard before a script is chosen',
     nativeShardRequests().length === 0,
     nativeShardRequests().join(', '),
   )
+
+  if (!hasNative) {
+    // The regression this suite exists for: a build without native data must not render a
+    // picker whose disabled buttons imply the corpus lacks those scripts.
+    await page.goto(`${BASE}#/song/${DEVANAGARI_SONG}`, { waitUntil: 'networkidle' })
+    await page.waitForSelector('.lyrics')
+    check('no script picker is rendered', (await page.locator('.script-toggle').count()) === 0)
+    check('no script notes are rendered', (await page.locator('.script-note').count()) === 0)
+    check('lyrics still render in Roman',
+      (await page.getAttribute('.lyrics', 'data-script')) === 'roman')
+    check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '))
+    await browser.close()
+    console.log(`\n${results.length - failures}/${results.length} checks passed (Roman-only build)`)
+    process.exit(failures ? 1 : 0)
+  }
+
+  check('the picker is offered when native data is present', true)
 
   // --- Devanagari -----------------------------------------------------------------
   await page.goto(`${BASE}#/song/${DEVANAGARI_SONG}`, { waitUntil: 'networkidle' })

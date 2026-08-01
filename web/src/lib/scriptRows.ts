@@ -24,6 +24,18 @@ export interface DisplayRow {
 }
 
 /**
+ * Whether to render the script picker at all.
+ *
+ * A deployment without native data must look like one. Showing three controls with two of
+ * them permanently disabled tells the reader the *corpus* lacks those scripts, which is a
+ * different and false claim — and it is exactly what shipped when the native shards were
+ * missing from a deploy.
+ */
+export function offersScripts(stats: { nativeScripts: boolean } | null | undefined): boolean {
+  return stats?.nativeScripts === true
+}
+
+/**
  * Which script actually renders, given a preference and what the song has.
  *
  * A preference is a wish, not a guarantee: asking for Tamil on a Devanagari song has to

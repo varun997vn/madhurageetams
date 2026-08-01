@@ -4,6 +4,7 @@ import {
   effectiveScript,
   langTag,
   nativeRows,
+  offersScripts,
   pairedRows,
   romanRows,
   rowsFor,
@@ -36,6 +37,27 @@ function song(overrides: Partial<NativeSong> = {}): NativeSong {
     ...overrides,
   }
 }
+
+describe('offersScripts', () => {
+  /**
+   * This is the regression guard for a real incident: the app was deployed with the native
+   * shards missing, and every song then showed a disabled Devanagari button whose tooltip
+   * said the master copy does not print that song in Devanagari. That is a claim about the
+   * corpus standing in for a fact about the deployment.
+   */
+  it('is false when the build ships no native data', () => {
+    expect(offersScripts({ nativeScripts: false })).toBe(false)
+  })
+
+  it('is false before stats have loaded', () => {
+    expect(offersScripts(null)).toBe(false)
+    expect(offersScripts(undefined)).toBe(false)
+  })
+
+  it('is true only on an explicit true', () => {
+    expect(offersScripts({ nativeScripts: true })).toBe(true)
+  })
+})
 
 describe('effectiveScript', () => {
   it('honours a preference the song can satisfy', () => {

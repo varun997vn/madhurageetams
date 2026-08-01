@@ -14,6 +14,7 @@ import {
   base64ToBytes,
   bytesToBase64,
   deriveKeyBytes,
+  gunzip,
   importAesKey,
   keyCheckValue,
   openShard,
@@ -30,7 +31,7 @@ import {
   type IndexBundle,
   type LyricShard,
   type NativeDoc,
-  type NativeMap,
+  type NativeIndex,
   type NativeScript,
   type NativeShard,
   type QueryRequest,
@@ -54,7 +55,8 @@ let store: Store | null = null
 let engine: SearchEngine | null = null
 const lyricShards = new Map<string, LyricShard>()
 const nativeShards = new Map<string, NativeShard>()
-let nativeMap: NativeMap | null = null
+let nativeIndex: NativeIndex | null = null
+let nativePosition: Map<number, number> | null = null
 let prefetching = false
 
 const NATIVE_SCRIPTS: (NativeScript | null)[] = [null, 'devanagari', 'tamil']
@@ -102,6 +104,7 @@ function stats() {
     languages: core.dicts.language.length,
     occasions: core.dicts.occasions.length,
     built: manifest?.built ?? '',
+    nativeScripts: nativeIndex !== null,
   }
 }
 
@@ -111,7 +114,7 @@ async function loadCore(): Promise<void> {
   store = new Store(core)
   engine = new SearchEngine(store)
   engine.setSynonyms((siteMeta as SiteMeta).synonyms ?? {})
-  await ensureNativeMap()
+  await ensureNativeIndex()
   emit({ kind: 'progress', phase: 'core', loaded: 1, total: 1 })
   emit({ kind: 'ready' })
   void prefetchLyrics()
@@ -188,50 +191,94 @@ async function lyricsFor(slot: number): Promise<string> {
   return shard.lyrics[slot - shard.firstSlot] ?? ''
 }
 
-/**
- * The ~1 KB availability map, loaded eagerly.
+/* ----------------------------------------------------------- native scripts --------
+ * These are the one part of the corpus that ships unencrypted, by decision of the
+ * copyright holder, so they are fetched with a plain `fetch` and need no key. Two
+ * consequences worth stating:
  *
- * Without it the script picker could not know whether a song has a native column at all
- * without pulling a multi-megabyte shard, so it would either guess or download blindly.
- * Failure is tolerated: an older data build has no map, and the site then behaves exactly
- * as it did before native scripts existed.
+ * 1. They are absent from `manifest.json`, so `prefetchLyrics()` and `shardForSlot()`
+ *    cannot see them. The promise that a Roman-only reader never downloads 7 MB of Indic
+ *    text is therefore structural rather than a filter someone could accidentally relax.
+ * 2. Everything is keyed by song **id**. The encrypted bundles are slot-indexed because
+ *    they come from one sorted pass over the parsed PDF; these come from a different
+ *    extraction, so sharing a slot ordering would be an assumption rather than a fact.
  */
-async function ensureNativeMap(): Promise<void> {
-  if (nativeMap) return
-  try {
-    nativeMap = (await fetchShard('nativemap')) as NativeMap
-  } catch {
-    nativeMap = null
-  }
-}
 
-async function nativeShardForSlot(slot: number): Promise<NativeShard | null> {
-  const m = await fetchManifest()
-  for (const entry of m.shards) {
-    if (!entry.name.startsWith('native-')) continue
-    const cached = nativeShards.get(entry.name)
-    if (cached && slot >= cached.firstSlot && slot <= cached.lastSlot) return cached
-  }
-  const total = m.shards.filter((s) => s.name.startsWith('native-')).length
-  if (total === 0) return null
-  // Same contiguous, evenly sized split as the lyric shards, so this stays arithmetic.
-  const per = Math.ceil(store!.count / total)
-  const name = `native-${String(Math.floor(slot / per)).padStart(2, '0')}`
-  if (!nativeShards.has(name)) {
+/**
+ * The ~59 KB index, loaded eagerly.
+ *
+ * Without it the picker could not tell whether a song has a native column without pulling
+ * a multi-megabyte shard. Failure is tolerated and reported: a build with no native data
+ * simply behaves as the site did before native scripts existed, and `stats.nativeScripts`
+ * goes false so the UI hides the picker rather than showing dead controls.
+ */
+async function ensureNativeIndex(): Promise<void> {
+  if (nativeIndex) return
+  const url = new URL(`data/native-index.json?v=${manifest?.revision ?? ''}`, baseUrl()).href
+  // One retry: a single transient failure should not disable the feature for the session.
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      nativeShards.set(name, (await fetchShard(name)) as NativeShard)
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const doc = (await response.json()) as NativeIndex
+      nativeIndex = doc
+      nativePosition = new Map(doc.ids.map((id, position) => [id, position]))
+      return
     } catch {
-      return null
+      nativeIndex = null
+      nativePosition = null
     }
   }
-  return nativeShards.get(name) ?? null
 }
 
-async function nativeFor(slot: number): Promise<NativeDoc | null> {
-  const shard = await nativeShardForSlot(slot)
-  const entry = shard?.songs[slot - shard.firstSlot]
+async function nativeShardAt(position: number): Promise<NativeShard | null> {
+  const entry = nativeIndex?.shards.find((s) => position >= s.first && position <= s.last)
   if (!entry) return null
-  return { id: store!.core.ids[slot]!, slot, ...decodeSong(entry) }
+
+  const cached = nativeShards.get(entry.name)
+  if (cached) return cached
+
+  try {
+    const url = new URL(`${entry.url}?v=${manifest?.revision ?? ''}`, baseUrl()).href
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const blob = new Uint8Array(await response.arrayBuffer())
+
+    // Hosts disagree about `.gz`. GitHub Pages serves it as an opaque application/gzip
+    // body, which arrives here still compressed; others set Content-Encoding: gzip and the
+    // browser inflates it before we ever see it. Sniffing the gzip magic handles both, and
+    // means this keeps working if the site is ever served from somewhere else.
+    const compressed = blob[0] === 0x1f && blob[1] === 0x8b
+
+    if (compressed) {
+      // Checked before inflating, for the same reason openShard checks before decrypting:
+      // a truncated response should fail as a clear checksum error rather than as a
+      // confusing parse error partway through a song. Only meaningful on the raw bytes.
+      const digest = await crypto.subtle.digest('SHA-256', blob as BufferSource)
+      const actual = Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+      if (actual !== entry.sha256) throw new Error(`checksum mismatch for ${entry.name}`)
+    }
+
+    const json = new TextDecoder().decode(compressed ? await gunzip(blob) : blob)
+    const shard = JSON.parse(json) as NativeShard
+    nativeShards.set(entry.name, shard)
+    return shard
+  } catch {
+    return null
+  }
+}
+
+async function nativeFor(id: number): Promise<NativeDoc | null> {
+  const position = nativePosition?.get(id)
+  if (position === undefined) return null
+  const shard = await nativeShardAt(position)
+  if (!shard) return null
+  const entry = shard.songs[shard.ids.indexOf(id)]
+  if (!entry) return null
+  const slot = store!.slotById.get(id) ?? -1
+  return { id, slot, ...decodeSong(entry) }
 }
 
 async function ensureIndex(): Promise<boolean> {
@@ -249,10 +296,11 @@ async function ensureIndex(): Promise<boolean> {
 
 function detailFor(slot: number, lyrics: string): SongDetail {
   const core = store!.core
-  // Both fields come from the tiny native map, so a song detail never blocks on a shard.
-  // Defaulting to "no native script, verified" keeps a data build without the map behaving
-  // exactly as it did before.
-  const scriptCode = nativeMap?.script[slot] ?? 0
+  // Both fields come from the small eager index, so a song detail never blocks on a shard.
+  // Defaulting to "no native script, verified" keeps a build without native data behaving
+  // exactly as it did before the feature existed.
+  const position = nativePosition?.get(core.ids[slot]!)
+  const scriptCode = position === undefined ? 0 : (nativeIndex?.script[position] ?? 0)
   return {
     slot,
     id: core.ids[slot]!,
@@ -272,7 +320,7 @@ function detailFor(slot: number, lyrics: string): SongDetail {
     page: core.page[slot]!,
     lyrics,
     nativeScript: NATIVE_SCRIPTS[scriptCode] ?? null,
-    scriptVerified: !nativeMap?.unverified.includes(slot),
+    scriptVerified: position === undefined || !nativeIndex?.unverified.includes(position),
   }
 }
 
@@ -539,9 +587,7 @@ ctx.onmessage = async (event: MessageEvent<RpcCall>) => {
       case 'getNative': {
         const out: NativeDoc[] = []
         for (const id of (params as { ids: number[] }).ids) {
-          const slot = store!.slotById.get(id)
-          if (slot === undefined) continue
-          const doc = await nativeFor(slot)
+          const doc = await nativeFor(id)
           if (doc) out.push(doc)
         }
         result = out
@@ -569,7 +615,8 @@ ctx.onmessage = async (event: MessageEvent<RpcCall>) => {
         engine = null
         lyricShards.clear()
         nativeShards.clear()
-        nativeMap = null
+        nativeIndex = null
+        nativePosition = null
         result = { ok: true }
         break
       default:
