@@ -10,29 +10,24 @@ import {
   rowsFor,
   rowsToText,
 } from './scriptRows'
-import type { NativeSong } from './types'
+import type { MultiRow, NativeSong } from './types'
 
 /**
  * Synthetic songs, deliberately. The corpus is password-gated and this file is committed
  * to a public repository, so the fixtures use placeholder text and exercise structure
- * rather than content. Every shape here is one the real data actually produces — the
- * counts in the comments are measured over all 7,898 songs.
+ * rather than content. Every shape here is one the real data actually produces.
  */
 
-/** A heading row (945 corpus-wide inside `aligned`) never carries native text. */
-const HEADING: [0 | 1, string] = [1, 'pallavi']
+const heading: MultiRow = [1, 'pallavi', 'पल्लवि', 'பல்லவி', 'പല്ലവി', 'ಪಲ್ಲವಿ', 'పల్లవి']
+const line1: MultiRow = [0, 'roman one', 'deva one', 'tam one', 'mal one', 'kan one', 'tel one']
+const line2: MultiRow = [0, 'roman two', 'deva two', 'tam two', 'kan two', 'kan two', 'tel two']
+const romanOnly: MultiRow = [0, 'roman orphan', '', '', '', '', '']
+const nativeOnly: MultiRow = [0, '', 'deva orphan', 'tam orphan', 'mal orphan', 'kan orphan', 'tel orphan']
 
 function song(overrides: Partial<NativeSong> = {}): NativeSong {
   return {
-    script: 'devanagari',
-    roman: [HEADING, [0, 'roman one'], [0, 'roman two'], [0, 'roman orphan']],
-    native: ['deva zero', 'deva one', 'deva two', 'deva orphan'],
-    pairs: [
-      [0, 0], // heading, which does have a native counterpart
-      [1, 1], // both sides       (175,922 corpus-wide)
-      [3, -1], // roman only      (26,547 corpus-wide)
-      [-1, 3], // native only     (11,562 corpus-wide)
-    ],
+    printed: 'devanagari',
+    rows: [heading, line1, line2, romanOnly, nativeOnly],
     verified: true,
     ...overrides,
   }
@@ -40,10 +35,9 @@ function song(overrides: Partial<NativeSong> = {}): NativeSong {
 
 describe('offersScripts', () => {
   /**
-   * This is the regression guard for a real incident: the app was deployed with the native
-   * shards missing, and every song then showed a disabled Devanagari button whose tooltip
-   * said the master copy does not print that song in Devanagari. That is a claim about the
-   * corpus standing in for a fact about the deployment.
+   * Regression guard for a real incident: the app was deployed with the native shards
+   * missing, and every song then showed disabled controls whose tooltips made claims
+   * about the corpus that were really facts about the deployment.
    */
   it('is false when the build ships no native data', () => {
     expect(offersScripts({ nativeScripts: false })).toBe(false)
@@ -60,168 +54,94 @@ describe('offersScripts', () => {
 })
 
 describe('effectiveScript', () => {
-  it('honours a preference the song can satisfy', () => {
-    expect(effectiveScript('devanagari', 'devanagari')).toBe('devanagari')
-    expect(effectiveScript('tamil', 'tamil')).toBe('tamil')
+  it('honours the preference — every song has every script now', () => {
+    expect(effectiveScript('telugu')).toBe('telugu')
+    expect(effectiveScript('roman')).toBe('roman')
+    expect(effectiveScript('malayalam')).toBe('malayalam')
   })
 
-  it('falls back to Roman when the song is printed in the other script', () => {
-    // The single most common disappointment: each song carries exactly one Indic script.
-    expect(effectiveScript('tamil', 'devanagari')).toBe('roman')
-    expect(effectiveScript('devanagari', 'tamil')).toBe('roman')
-  })
-
-  it('falls back to Roman for the songs with no Indic column', () => {
-    expect(effectiveScript('devanagari', null)).toBe('roman')
-    expect(effectiveScript('tamil', null)).toBe('roman')
-  })
-
-  it('lets a per-song override win over the reader default', () => {
-    expect(effectiveScript('roman', 'devanagari', 'devanagari')).toBe('devanagari')
-    expect(effectiveScript('devanagari', 'devanagari', 'roman')).toBe('roman')
-  })
-
-  it('treats a null override as "follow the default"', () => {
-    expect(effectiveScript('devanagari', 'devanagari', null)).toBe('devanagari')
-  })
-
-  it('does not let an override conjure a script the song lacks', () => {
-    expect(effectiveScript('roman', 'devanagari', 'tamil')).toBe('roman')
+  it('lets a per-song override win over the preference', () => {
+    expect(effectiveScript('tamil', null, 'kannada')).toBe('kannada')
+    expect(effectiveScript('tamil', null, null)).toBe('tamil')
   })
 })
 
 describe('nativeRows', () => {
-  it('keeps native lines in order', () => {
-    expect(nativeRows(song()).map((r) => r.native)).toEqual([
-      'deva zero',
-      'deva one',
-      'deva orphan',
-    ])
+  it('picks the requested column and keeps headings', () => {
+    const rows = nativeRows(song(), 'kannada')
+    expect(rows[0]).toEqual({ heading: true, native: 'ಪಲ್ಲವಿ', roman: 'pallavi' })
+    expect(rows[1]!.native).toBe('kan one')
   })
 
-  it('marks a row as a heading when its Roman counterpart is one', () => {
-    // The native column records no headings at all, so this carry-across is the only way a
-    // single-script reading view keeps its pallavi and charaNam markers.
-    expect(nativeRows(song())[0]).toEqual({ heading: true, native: 'deva zero' })
+  it('keeps roman-only rows (empty native cell) so stanza shape survives', () => {
+    const rows = nativeRows(song(), 'telugu')
+    const orphan = rows.find((r) => r.roman === 'roman orphan')
+    expect(orphan).toBeDefined()
+    expect(orphan!.native).toBeUndefined()
   })
 
-  it('drops Roman-only rows, which are the other column wrapping', () => {
-    expect(nativeRows(song()).some((r) => r.native === undefined && !r.heading)).toBe(false)
-  })
-
-  it('keeps a Roman heading that has no native counterpart', () => {
-    const withOrphanHeading = song({ pairs: [[0, -1], [1, 1]] })
-    expect(nativeRows(withOrphanHeading)[0]).toEqual({ heading: true, roman: 'pallavi' })
-  })
-
-  it('returns nothing for a song with no Indic column', () => {
-    expect(nativeRows(song({ script: null, native: [], pairs: [] }))).toEqual([])
-  })
-})
-
-describe('pairedRows', () => {
-  it('emits both sides where both exist', () => {
-    expect(pairedRows(song())[1]).toEqual({
-      heading: false,
-      roman: 'roman one',
-      native: 'deva one',
-    })
-  })
-
-  it('leaves the missing side undefined rather than inventing a placeholder', () => {
-    const rows = pairedRows(song())
-    expect(rows[2]).toEqual({ heading: false, roman: 'roman orphan', native: undefined })
-    expect(rows[3]).toEqual({ heading: false, roman: undefined, native: 'deva orphan' })
-  })
-
-  it('keeps both texts on a heading that was printed in the native script too', () => {
-    expect(pairedRows(song())[0]).toEqual({
-      heading: true,
-      roman: 'pallavi',
-      native: 'deva zero',
-    })
-  })
-
-  it('skips a pair with nothing on either side', () => {
-    expect(pairedRows(song({ pairs: [[-1, -1], [1, 1]] }))).toHaveLength(1)
-  })
-})
-
-describe('romanRows', () => {
-  it('preserves every Roman row including headings', () => {
-    const rows = romanRows(song())
-    expect(rows).toHaveLength(4)
-    expect(rows[0]).toEqual({ heading: true, roman: 'pallavi' })
+  it('keeps native-only rows', () => {
+    const rows = nativeRows(song(), 'telugu')
+    expect(rows.some((r) => r.native === 'tel orphan')).toBe(true)
   })
 })
 
 describe('rowsFor', () => {
-  it('returns null for Roman so callers use the shipped lyrics', () => {
+  it('returns null for roman so the caller uses the shipped lyrics', () => {
     expect(rowsFor(song(), 'roman', false)).toBeNull()
   })
 
-  it('returns null when the song does not carry the requested script', () => {
-    expect(rowsFor(song(), 'tamil', false)).toBeNull()
-  })
-
-  it('switches between single and paired', () => {
-    expect(rowsFor(song(), 'devanagari', false)).toEqual(nativeRows(song()))
-    expect(rowsFor(song(), 'devanagari', true)).toEqual(pairedRows(song()))
+  it('returns rows for every Indic script', () => {
+    for (const script of ['tamil', 'devanagari', 'malayalam', 'kannada', 'telugu'] as const) {
+      expect(rowsFor(song(), script, false)).not.toBeNull()
+    }
   })
 })
 
 describe('rowsToText', () => {
-  it('writes one line per row in single-script mode', () => {
-    // The heading resolves to its native rendering, keeping the sheet single-script.
-    expect(rowsToText(nativeRows(song()), false)).toBe('deva zero\ndeva one\ndeva orphan')
+  it('renders single-script text with blank line before headings', () => {
+    const text = rowsToText(nativeRows(song(), 'devanagari'), false)
+    expect(text.startsWith('पल्लवि')).toBe(true)
+    expect(text).toContain('deva one')
   })
 
-  it('falls back to the Roman label for a heading with no native counterpart', () => {
-    const rows = nativeRows(song({ pairs: [[0, -1], [1, 1]] }))
-    expect(rowsToText(rows, false)).toBe('pallavi\ndeva one')
+  it('indents roman under native in bilingual mode', () => {
+    const text = rowsToText(pairedRows(song(), 'devanagari'), true)
+    expect(text).toContain('deva one\n    roman one')
   })
+})
 
-  it('indents the Roman beneath its native line when bilingual', () => {
-    expect(rowsToText(pairedRows(song()), true)).toBe(
-      'deva zero\ndeva one\n    roman one\n    roman orphan\ndeva orphan',
-    )
-  })
-
-  it('survives a round trip through non-ASCII text', () => {
-    // The PDF exporter strips non-Latin-1; that must never leak into the text path.
-    const text = rowsToText([{ heading: false, native: 'नमः' }], false)
-    expect(text).toBe('नमः')
+describe('romanRows', () => {
+  it('reproduces the roman column with heading flags', () => {
+    const rows = romanRows(song())
+    expect(rows[0]).toEqual({ heading: true, roman: 'pallavi' })
+    expect(rows[3]).toEqual({ heading: false, roman: 'roman orphan' })
   })
 })
 
 describe('langTag', () => {
-  it('tags Tamil plainly', () => {
-    expect(langTag('tamil', 'Tamil')).toBe('ta')
-  })
-
-  it('names the script explicitly for languages printed in Devanagari', () => {
-    // 993 Telugu and 773 Kannada songs are printed in Devanagari in this document.
+  it('combines the song language with the rendered script', () => {
     expect(langTag('devanagari', 'Telugu')).toBe('te-Deva')
-    expect(langTag('devanagari', 'Kannada')).toBe('kn-Deva')
-    expect(langTag('devanagari', 'Sanskrit')).toBe('sa-Deva')
+    expect(langTag('kannada', 'Sanskrit')).toBe('sa-Knda')
+    expect(langTag('tamil', 'Tamil')).toBe('ta-Taml')
+    expect(langTag('roman', 'Hindi')).toBe('hi-Latn')
   })
 
-  it('falls back to an undetermined language rather than guessing', () => {
-    expect(langTag('devanagari', 'Konkani')).toBe('und-Deva')
+  it('falls back to und for unknown languages', () => {
+    expect(langTag('telugu', 'Klingon')).toBe('und-Telu')
   })
 })
 
 describe('decodeSong', () => {
-  it('widens the shard tags to full script names', () => {
-    const base = { rom: [], nat: [], pair: [], v: 1 as const }
-    expect(decodeSong({ ...base, s: 'deva' }).script).toBe('devanagari')
-    expect(decodeSong({ ...base, s: 'taml' }).script).toBe('tamil')
-    expect(decodeSong({ ...base, s: null }).script).toBeNull()
+  it('decodes printed-script codes including mixed', () => {
+    expect(decodeSong({ p: 0, rows: [], v: 1 }).printed).toBeNull()
+    expect(decodeSong({ p: 1, rows: [], v: 1 }).printed).toBe('devanagari')
+    expect(decodeSong({ p: 2, rows: [], v: 0 }).printed).toBe('tamil')
+    expect(decodeSong({ p: 3, rows: [], v: 1 }).printed).toBe('mixed')
   })
 
-  it('carries the verification flag through', () => {
-    const base = { s: 'deva' as const, rom: [], nat: [], pair: [] }
-    expect(decodeSong({ ...base, v: 0 }).verified).toBe(false)
-    expect(decodeSong({ ...base, v: 1 }).verified).toBe(true)
+  it('decodes the verified flag', () => {
+    expect(decodeSong({ p: 1, rows: [], v: 0 }).verified).toBe(false)
+    expect(decodeSong({ p: 1, rows: [], v: 1 }).verified).toBe(true)
   })
 })

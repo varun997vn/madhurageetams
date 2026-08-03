@@ -32,8 +32,8 @@ import {
   type LyricShard,
   type NativeDoc,
   type NativeIndex,
-  type NativeScript,
   type NativeShard,
+  type PrintedScript,
   type QueryRequest,
   type QueryResponse,
   type ResultRow,
@@ -59,7 +59,8 @@ let nativeIndex: NativeIndex | null = null
 let nativePosition: Map<number, number> | null = null
 let prefetching = false
 
-const NATIVE_SCRIPTS: (NativeScript | null)[] = [null, 'devanagari', 'tamil']
+/** Printed-script codes as stored in the native index. */
+const PRINTED_SCRIPTS: PrintedScript[] = [null, 'devanagari', 'tamil', 'mixed']
 
 function emit(event: WorkerEvent): void {
   ctx.postMessage({ event } satisfies RpcReply)
@@ -300,7 +301,7 @@ function detailFor(slot: number, lyrics: string): SongDetail {
   // Defaulting to "no native script, verified" keeps a build without native data behaving
   // exactly as it did before the feature existed.
   const position = nativePosition?.get(core.ids[slot]!)
-  const scriptCode = position === undefined ? 0 : (nativeIndex?.script[position] ?? 0)
+  const scriptCode = position === undefined ? 0 : (nativeIndex?.printed[position] ?? 0)
   return {
     slot,
     id: core.ids[slot]!,
@@ -319,7 +320,7 @@ function detailFor(slot: number, lyrics: string): SongDetail {
     roleOrder: core.roleOrder[slot]! >= 0 ? core.roleOrder[slot]! : null,
     page: core.page[slot]!,
     lyrics,
-    nativeScript: NATIVE_SCRIPTS[scriptCode] ?? null,
+    nativeScript: PRINTED_SCRIPTS[scriptCode] ?? null,
     scriptVerified: position === undefined || !nativeIndex?.unverified.includes(position),
   }
 }

@@ -9,7 +9,7 @@ import { getWorker } from '../lib/workerClient'
 import { useScript } from '../state/script'
 import { useSession } from '../state/session'
 import { useSetlist } from '../state/setlist'
-import { SCRIPT_LABELS, type NativeDoc, type ScriptChoice, type SongDetail } from '../lib/types'
+import { SCRIPT_CHOICES, SCRIPT_LABELS, type NativeDoc, type ScriptChoice, type SongDetail } from '../lib/types'
 
 export function SetlistView({
   onOpen,
@@ -102,13 +102,9 @@ export function SetlistView({
     overrides: setlist.scripts,
     docs,
   }
-  // The union of Indic scripts across the set, in a stable order. A set that mixes Tamil
-  // and Sanskrit songs offers both; one that is all Tamil offers only Tamil, so the reader
-  // is never given a choice that would silently resolve to Roman.
-  const setScripts = (['devanagari', 'tamil'] as const).filter((s) =>
-    songs.some((song) => song.nativeScript === s),
-  )
-  const anyNative = hasScripts && setScripts.length > 0
+  // Every song carries all six scripts now, so the set-level picker is available
+  // whenever the deployment ships the multiscript data at all.
+  const anyNative = hasScripts && songs.length > 0
   const nativeCount = songs.filter(
     (s) => effectiveScript(script.choice, s.nativeScript, setlist.scripts[s.id] ?? null) !== 'roman',
   ).length
@@ -169,7 +165,6 @@ export function SetlistView({
         <>
           <ScriptPicker
             value={script.choice}
-            available={setScripts}
             bilingual={script.bilingual}
             onChange={script.setChoice}
             onBilingual={script.setBilingual}
@@ -180,8 +175,8 @@ export function SetlistView({
               ? `${nativeCount} of ${songs.length} songs will print in native script. ` +
                 'Tap a song’s script chip to set it individually.'
               : 'Tap a song’s script chip to set it individually.'}{' '}
-            The master copy prints each song in one Indic script only, so a song without
-            the chosen script stays in Roman.
+            Scripts beyond the one the master copy prints are machine-transliterated
+            from it.
           </p>
         </>
       ) : null}
@@ -226,7 +221,7 @@ export function SetlistView({
                   ) : null}
                   {song.deity ? <span className="chip chip-muted">{song.deity}</span> : null}
                   {song.ragam[0] ? <span className="chip chip-muted">{song.ragam[0]}</span> : null}
-                  {hasScripts && song.nativeScript ? (
+                  {hasScripts ? (
                     <button
                       className="chip"
                       data-pinned={setlist.scripts[song.id] ? 'true' : undefined}
@@ -321,11 +316,8 @@ function SongScriptOptions({
       label: 'Use my default',
       hint: SCRIPT_LABELS[effectiveScript(fallback, song.nativeScript)],
     },
-    { value: 'roman', label: SCRIPT_LABELS.roman },
+    ...SCRIPT_CHOICES.map((value) => ({ value: value as ScriptChoice | null, label: SCRIPT_LABELS[value] })),
   ]
-  if (song.nativeScript) {
-    options.push({ value: song.nativeScript, label: SCRIPT_LABELS[song.nativeScript] })
-  }
 
   return (
     <div className="script-options">

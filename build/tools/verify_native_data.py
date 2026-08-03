@@ -72,11 +72,11 @@ def main(argv: list[str]) -> int:
         print(f"::error::shards cover {covered} songs, expected {EXPECTED_SONGS}")
         return 1
 
-    scripts = doc.get("script", [])
+    printed = doc.get("printed", [])
     print(
-        f"native scripts OK: {len(listed)} shards, {doc['count']} songs "
-        f"({scripts.count(1)} devanagari, {scripts.count(2)} tamil, {scripts.count(0)} neither), "
-        "checksums verified"
+        f"native scripts OK: {len(listed)} shards, {doc['count']} songs, all six scripts "
+        f"(printed: {printed.count(1)} devanagari, {printed.count(2)} tamil, "
+        f"{printed.count(3)} both, {printed.count(0)} neither), checksums verified"
     )
     return 0
 

@@ -144,8 +144,11 @@ try {
   check('Roman is the default', (await page.getAttribute('.lyrics', 'data-script')) === 'roman')
   const devaOptions = await scriptOptions(page)
   check('Devanagari is listed', devaOptions.includes('Devanagari'), devaOptions.join(' / '))
-  check('Tamil is not listed here', !devaOptions.includes('Tamil'), devaOptions.join(' / '))
-  check('only the scripts this song has are offered', devaOptions.length === 2)
+  check('all six scripts are offered on every song', devaOptions.length === 6,
+    devaOptions.join(' / '))
+  for (const label of ['Roman', 'Tamil', 'Malayalam', 'Kannada', 'Telugu']) {
+    check(`${label} is listed`, devaOptions.includes(label))
+  }
 
   await selectScript(page, 'devanagari')
   await waitForScript(page, 'devanagari')
@@ -168,8 +171,9 @@ try {
   check('Devanagari font stack resolved', /Devanagari|Nirmala|Mangal/i.test(deva.font), deva.font)
   check('leading is looser than the Latin column',
     deva.lineHeight / deva.fontSize >= 1.9, `${(deva.lineHeight / deva.fontSize).toFixed(2)}`)
-  check('the language/script mismatch is explained',
-    (await page.locator('.script-note').count()) > 0)
+  // printed script for this song IS devanagari, so no transliteration note here
+  check('no transliteration note on the printed script',
+    (await page.locator('.script-note').count()) === 0)
   await page.screenshot({ path: `${SHOTS}/devanagari-desktop.png` })
 
   // --- side by side ---------------------------------------------------------------
@@ -199,7 +203,8 @@ try {
   await page.waitForSelector('.script-toggle')
   const tamilOptions = await scriptOptions(page)
   check('Tamil is listed on a Tamil song', tamilOptions.includes('Tamil'), tamilOptions.join(' / '))
-  check('Devanagari is not listed there', !tamilOptions.includes('Devanagari'))
+  check('Devanagari is offered there too (machine-transliterated)',
+    tamilOptions.includes('Devanagari'))
   await selectScript(page, 'tamil')
   await waitForScript(page, 'tamil')
   const tamil = await page.evaluate((pattern) => {
@@ -212,15 +217,15 @@ try {
   }, TAMIL.source)
   check('Tamil codepoints render', tamil.glyphs > 50, `${tamil.glyphs} chars`)
   check('Tamil font stack resolved', /Tamil|Nirmala|Latha/i.test(tamil.font), tamil.font)
-  check('lang is ta', tamil.lang === 'ta', tamil.lang)
+  check('lang is ta-Taml', tamil.lang === 'ta-Taml', tamil.lang)
   await page.screenshot({ path: `${SHOTS}/tamil-desktop.png` })
 
   // --- a song with no Indic column ---------------------------------------------------
   await page.goto(`${BASE}#/song/${ROMAN_ONLY_SONG}`, { waitUntil: 'networkidle' })
   await page.waitForSelector('.lyrics')
-  check('no picker at all on a Roman-only song',
-    (await page.locator('.script-toggle').count()) === 0)
-  check('and it says why', (await page.locator('.script-note').count()) > 0)
+  // even the six Roman-only songs offer all scripts now (generated from Roman)
+  check('the picker is offered on a Roman-only song too',
+    (await page.locator('.script-toggle').count()) === 1)
 
   // --- the set builder ----------------------------------------------------------------
   for (const id of [DEVANAGARI_SONG, TAMIL_SONG]) {

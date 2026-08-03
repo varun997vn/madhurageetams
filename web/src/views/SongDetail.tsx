@@ -11,8 +11,8 @@ import {
 } from '../lib/scriptRows'
 import { getWorker } from '../lib/workerClient'
 import { useScript } from '../state/script'
-import { useSession } from '../state/session'
 import { useSetlist } from '../state/setlist'
+import { useSession } from '../state/session'
 import {
   SCRIPT_LABELS,
   type FacetName,
@@ -28,8 +28,14 @@ interface Props {
   onBack: () => void
 }
 
-export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
-  const { meta, stats } = useSession()
+/**
+ * The reading view is deliberately lyrics-only: a title, the language selector, and the
+ * lyric body in the selected script. The metadata the corpus carries (composer, deity,
+ * ragam, categories, source page) stays in the browse cards and facets — the person who
+ * opened a song wants to read or sing it, not re-encounter its card.
+ */
+export function SongDetailView({ songId, onBack }: Props) {
+  const { stats } = useSession()
   const setlist = useSetlist()
   const script = useScript()
   const hasScripts = offersScripts(stats)
@@ -56,13 +62,12 @@ export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
   }, [songId])
 
   /**
-   * Native-script rows, fetched only when they will actually be shown.
+   * Multiscript rows, fetched only when they will actually be shown.
    *
    * This is the one call that pulls a native shard, so the guard below is what keeps a
    * Roman-only reader from ever downloading several megabytes they do not want.
    */
-  const wantsNative =
-    hasScripts && script.choice !== 'roman' && song?.nativeScript === script.choice
+  const wantsNative = hasScripts && script.choice !== 'roman'
   useEffect(() => {
     if (!wantsNative) {
       setNative(null)
@@ -113,52 +118,6 @@ export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
 
         <header className="song-head">
           <h1>{song.title}</h1>
-          <div className="song-chips">
-            {song.deity ? (
-              <button className="chip" onClick={() => onFacet('deity', song.deity)}>
-                {song.deity}
-              </button>
-            ) : null}
-            {song.ragam.map((r) => (
-              <button key={r} className="chip" onClick={() => onFacet('ragam', r)}>
-                Ragam: {r}
-              </button>
-            ))}
-            {song.thalam.map((t) => (
-              <button key={t} className="chip" onClick={() => onFacet('thalam', t)}>
-                Thalam: {t}
-              </button>
-            ))}
-            {song.composer ? (
-              <button className="chip" onClick={() => onFacet('composer', song.composer)}>
-                {song.composer}
-              </button>
-            ) : null}
-            {song.language ? (
-              <button className="chip" onClick={() => onFacet('language', song.language)}>
-                {song.language}
-              </button>
-            ) : null}
-            {song.albums.map((a) => (
-              <button key={a} className="chip chip-muted" onClick={() => onFacet('albums', a)}>
-                {a}
-              </button>
-            ))}
-          </div>
-
-          {song.occasions.length > 0 ? (
-            <div className="song-chips" style={{ marginTop: 8 }}>
-              {song.occasions.map((id) => {
-                const occasion = meta?.occasions.find((o) => o.id === id)
-                return (
-                  <button key={id} className="chip" onClick={() => onOccasion(id)}>
-                    <span aria-hidden="true">{occasion?.icon}</span>
-                    {occasion?.label ?? id}
-                  </button>
-                )
-              })}
-            </div>
-          ) : null}
         </header>
 
         <div className="song-actions">
@@ -205,7 +164,6 @@ export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
         {hasScripts ? (
           <ScriptPicker
             value={script.choice}
-            available={song.nativeScript ? [song.nativeScript] : []}
             bilingual={script.bilingual}
             onChange={script.setChoice}
             onBilingual={script.setBilingual}
@@ -219,31 +177,12 @@ export function SongDetailView({ songId, onFacet, onOccasion, onBack }: Props) {
           bilingual={script.bilingual}
           explain={hasScripts}
         />
-
-        {song.catalog.length > 0 ? (
-          <div className="song-chips" style={{ marginTop: 18 }}>
-            {song.catalog.slice(0, 14).map((c) => (
-              <button key={c} className="chip chip-muted" onClick={() => onFacet('catalog', c)}>
-                {c}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <p className="song-foot">
-          Song #{song.id} · master copy page {song.page}
-          {song.role ? ` · session role: ${song.role}` : ''}
-        </p>
       </div>
     </div>
   )
 }
 
-/**
- * Chooses a rendering, and explains itself when it cannot give the reader what they asked
- * for — which is the common case, since a preference is a wish and each song carries only
- * one Indic script.
- */
+/** Chooses a rendering, and says which text is the source's own and which is generated. */
 function LyricsPanel({
   song,
   native,
@@ -255,11 +194,11 @@ function LyricsPanel({
   native: NativeDoc | null
   choice: ScriptChoice
   bilingual: boolean
-  /** False when this build ships no native data. Every note below would then be a claim
-   *  about the corpus that is really a fact about the deployment, so none are shown. */
+  /** False when this build ships no multiscript data. Every note below would then be a
+   *  claim about the corpus that is really a fact about the deployment, so none show. */
   explain: boolean
 }) {
-  const effective = effectiveScript(choice, song.nativeScript)
+  const effective = effectiveScript(choice)
 
   return (
     <>
@@ -268,7 +207,7 @@ function LyricsPanel({
       ) : native ? (
         <div className="lyrics" data-script={effective} lang={langTag(effective, song.language)}>
           <NativeLines
-            rows={bilingual ? pairedRows(native) : nativeRows(native)}
+            rows={bilingual ? pairedRows(native, effective) : nativeRows(native, effective)}
             bilingual={bilingual}
           />
         </div>
@@ -278,7 +217,7 @@ function LyricsPanel({
         </div>
       )}
 
-      {explain ? <ScriptNote song={song} choice={choice} effective={effective} /> : null}
+      {explain ? <ScriptNote song={song} native={native} effective={effective} /> : null}
     </>
   )
 }
@@ -286,41 +225,37 @@ function LyricsPanel({
 /**
  * Why the reader is looking at what they are looking at.
  *
- * The Devanagari line is the one worth spelling out: 993 Telugu and 773 Kannada songs are
- * printed in Devanagari in this document, so a reader who sees "Language: Telugu" beside a
- * Devanagari column needs to be told that is the source's doing rather than a mistake.
+ * The line that matters: whether this column is the master copy's own printing or a
+ * machine transliteration of it. Presenting generated text as the source's would be a
+ * false claim about the document, so the provenance is spelled out per script.
  */
 function ScriptNote({
   song,
-  choice,
+  native,
   effective,
 }: {
   song: Song
-  choice: ScriptChoice
+  native: NativeDoc | null
   effective: ScriptChoice
 }) {
-  const notes: string[] = []
-  const DEVANAGARI_NATIVE = ['Sanskrit', 'Hindi', 'Marathi']
+  if (effective === 'roman' || !native) return null
 
-  if (song.nativeScript === null) {
-    notes.push('The master copy prints this song in Roman transliteration only.')
-  } else if (choice !== 'roman' && effective === 'roman') {
-    notes.push(
-      `The master copy prints this song in ${SCRIPT_LABELS[song.nativeScript]}, ` +
-        `not ${SCRIPT_LABELS[choice]}.`,
-    )
-  } else if (effective === 'devanagari' && !DEVANAGARI_NATIVE.includes(song.language)) {
-    notes.push(`This is a ${song.language} song, printed in Devanagari in the master copy.`)
-  }
+  const printedHere =
+    native.printed === 'mixed' ||
+    (effective === 'devanagari' && native.printed === 'devanagari') ||
+    (effective === 'tamil' && native.printed === 'tamil')
 
   return (
     <>
-      {notes.map((note) => (
-        <p key={note} className="script-note">
-          {note}
+      {printedHere ? null : (
+        <p className="script-note">
+          {`Transliterated to ${SCRIPT_LABELS[effective]} from the master copy` +
+            (native.printed
+              ? ` (printed in ${native.printed === 'mixed' ? 'Tamil and Devanagari' : SCRIPT_LABELS[native.printed as ScriptChoice]}).`
+              : ' (printed in Roman only).')}
         </p>
-      ))}
-      {effective !== 'roman' && !song.scriptVerified ? (
+      )}
+      {!song.scriptVerified ? (
         <p className="script-warn" role="note">
           A few glyph runs in this song could not be machine-verified against the source
           font. The Roman transliteration is the authoritative reading.
@@ -330,7 +265,7 @@ function ScriptNote({
   )
 }
 
-/** Native lines, with the Roman column's structural headings carried across. */
+/** Lines in the chosen script, with structural headings styled distinctly. */
 function NativeLines({ rows, bilingual }: { rows: DisplayRow[]; bilingual: boolean }) {
   if (rows.length === 0) return <span className="dim">No lyrics recorded for this entry.</span>
 
@@ -373,7 +308,7 @@ function RomanLyrics({ text }: { text: string }) {
             </div>
           )
         }
-        return <div key={index}>{line || ' '}</div>
+        return <div key={index}>{line || ' '}</div>
       })}
     </div>
   )

@@ -41,6 +41,12 @@
           "Devanagari Sangam MN", Mangal, "Lohit Devanagari", sans-serif;
   --taml: "Noto Sans Tamil", "Nirmala UI", "Tamil Sangam MN", Latha,
           "Lohit Tamil", sans-serif;
+  --mlym: "Noto Sans Malayalam", "Nirmala UI", "Malayalam Sangam MN",
+          Kartika, "Lohit Malayalam", sans-serif;
+  --knda: "Noto Sans Kannada", "Nirmala UI", "Kannada Sangam MN",
+          Tunga, "Lohit Kannada", sans-serif;
+  --telu: "Noto Sans Telugu", "Nirmala UI", "Telugu Sangam MN",
+          Gautami, "Lohit Telugu", sans-serif;
 
   /* Safe-area insets. index.html sets viewport-fit=cover, so anything pinned to an edge
      must consume these or it lands under the iPhone home indicator / notch. */
@@ -752,9 +758,15 @@ mark {
    for them: these rows are already one line each, and preserving the source's leading
    spaces would indent them arbitrarily. */
 .lyrics[data-script='devanagari'],
-.lyrics[data-script='tamil'] { white-space: normal; }
+.lyrics[data-script='tamil'],
+.lyrics[data-script='malayalam'],
+.lyrics[data-script='kannada'],
+.lyrics[data-script='telugu'] { white-space: normal; }
 .lyrics[data-script='devanagari'] { font-family: var(--deva); font-size: 19px; line-height: 2.05; }
 .lyrics[data-script='tamil'] { font-family: var(--taml); font-size: 19px; line-height: 2; }
+.lyrics[data-script='malayalam'] { font-family: var(--mlym); font-size: 19px; line-height: 2.05; }
+.lyrics[data-script='kannada'] { font-family: var(--knda); font-size: 19px; line-height: 2.05; }
+.lyrics[data-script='telugu'] { font-family: var(--telu); font-size: 19px; line-height: 2.05; }
 
 /* Section markers (pallavi, charaNam, the ragam/thalam line). The source records these
    only in the Roman column, so they stay in the Latin sans face on purpose — they are
@@ -804,7 +816,9 @@ mark {
   .song-actions { gap: 8px; }
   .song-actions .btn { flex: 1 1 46%; }
   .lyrics { padding: 16px 15px; border-radius: var(--radius); font-size: 17px; }
-  .lyrics[data-script='devanagari'], .lyrics[data-script='tamil'] { font-size: 19.5px; }
+  .lyrics[data-script='devanagari'], .lyrics[data-script='tamil'],
+  .lyrics[data-script='malayalam'], .lyrics[data-script='kannada'],
+  .lyrics[data-script='telugu'] { font-size: 19.5px; }
 
   /* Two columns of Indic text do not fit a phone, so a pair becomes native-then-Roman
      stacked. `display: contents` has to be undone for that: the pair needs to be a real
@@ -967,7 +981,9 @@ mark {
     break-after: avoid; page-break-after: avoid;
   }
   .lyrics { border: 0; padding: 0; background: none; font-size: 12pt; }
-  .lyrics[data-script='devanagari'], .lyrics[data-script='tamil'] { font-size: 14pt; }
+  .lyrics[data-script='devanagari'], .lyrics[data-script='tamil'],
+  .lyrics[data-script='malayalam'], .lyrics[data-script='kannada'],
+  .lyrics[data-script='telugu'] { font-size: 14pt; }
   .lyrics-pairs { column-gap: 18px; }
   .lyrics-pairs .pair-roman { font-size: 10pt; }
   a[href]::after { content: none !important; }
