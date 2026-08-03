@@ -136,8 +136,12 @@ function PrintSong({
   choice: ReturnType<typeof effectiveScript>
   bilingual: boolean
 }) {
-  const native = choice !== 'roman' && doc && doc.script === choice ? doc : null
-  const rows = native ? (bilingual ? pairedRows(native) : nativeRows(native)) : null
+  const native = choice !== 'roman' && doc ? doc : null
+  const rows = native
+    ? bilingual
+      ? pairedRows(native, choice)
+      : nativeRows(native, choice)
+    : null
 
   return (
     <section className="print-song">

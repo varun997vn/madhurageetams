@@ -46,40 +46,54 @@ export interface LyricShard {
 }
 
 /* --------------------------------------------------------------- native scripts ----
- * The master copy prints every song's Roman transliteration beside exactly one Indic
- * script — Tamil for Tamil-language songs, Devanagari for everything else. No song has
- * both, and no song is printed in Telugu, Kannada or Malayalam script, so a Telugu song
- * appears here as `devanagari`. Nothing is transliterated: this is what the page shows.
+ * Every song ships in six scripts: the Roman transliteration and the Indic script the
+ * master copy prints are the source's own text; the other four columns are machine
+ * transliterations generated (and validated line-by-line against the printed column)
+ * by the madhurageetams-source engine. `printed` records which Indic script the master
+ * copy actually prints — ~200 songs print both (a Tamil pasuram prelude before a
+ * Devanagari kirtan), and six English songs print neither.
  */
 
-export type NativeScript = 'devanagari' | 'tamil'
+export type NativeScript = 'tamil' | 'devanagari' | 'malayalam' | 'kannada' | 'telugu'
 export type ScriptChoice = 'roman' | NativeScript
 
-/** `deva`/`taml` as stored in the shard; widened to NativeScript on the way out. */
-export type NativeScriptTag = 'deva' | 'taml'
+/** What the master copy itself prints for a song. */
+export type PrintedScript = 'devanagari' | 'tamil' | 'mixed' | null
 
 export const SCRIPT_LABELS: Record<ScriptChoice, string> = {
   roman: 'Roman',
-  devanagari: 'Devanagari',
   tamil: 'Tamil',
+  devanagari: 'Devanagari',
+  malayalam: 'Malayalam',
+  kannada: 'Kannada',
+  telugu: 'Telugu',
 }
 
-/** `[isHeading, text]` — headings are the structural markers (pallavi, charaNam, the
- *  ragam/thalam line), which the source records only in the Roman column. */
-export type RomanRow = [0 | 1, string]
+/** Dropdown order: Roman first, then the Indic scripts. */
+export const SCRIPT_CHOICES: ScriptChoice[] = [
+  'roman', 'tamil', 'devanagari', 'malayalam', 'kannada', 'telugu',
+]
 
-/** `[romanIndex, nativeIndex]` into a song's `roman`/`native` arrays; -1 where a row has
- *  no counterpart, which happens for 17.8% of rows because the two columns wrap
- *  differently. */
-export type RowPair = [number, number]
+/** `[isHeading, roman, devanagari, tamil, malayalam, kannada, telugu]` — one line of the
+ *  song in every script. Rows arrive pre-aligned from the source, so there is no pairing
+ *  arithmetic left on the client. */
+export type MultiRow = [0 | 1, string, string, string, string, string, string]
+
+/** Column of each script inside a MultiRow. */
+export const ROW_COLUMN: Record<ScriptChoice, number> = {
+  roman: 1,
+  devanagari: 2,
+  tamil: 3,
+  malayalam: 4,
+  kannada: 5,
+  telugu: 6,
+}
 
 export interface NativeSong {
-  /** null for the six English songs, which have no Indic column at all. */
-  script: NativeScript | null
-  roman: RomanRow[]
-  native: string[]
-  pairs: RowPair[]
-  /** false for the 61 songs with a glyph run that could not be machine-verified. */
+  /** Which Indic script the master copy prints for this song. */
+  printed: PrintedScript
+  rows: MultiRow[]
+  /** false for the songs with a glyph run that could not be machine-verified. */
   verified: boolean
 }
 
@@ -94,10 +108,9 @@ export interface NativeShard {
   /** This shard's own song ids, so lookup never depends on the encrypted corpus's slots. */
   ids: number[]
   songs: {
-    s: NativeScriptTag | null
-    rom: RomanRow[]
-    nat: string[]
-    pair: RowPair[]
+    /** printed script: 0 none, 1 devanagari, 2 tamil, 3 both */
+    p: 0 | 1 | 2 | 3
+    rows: MultiRow[]
     v: 0 | 1
   }[]
 }
@@ -124,10 +137,11 @@ export interface NativeIndex {
   count: number
   ids: number[]
   shards: NativeShardEntry[]
-  /** 0 = none, 1 = devanagari, 2 = tamil. */
-  script: number[]
+  /** Row-column order of the six scripts, informational. */
+  scripts: string[]
+  /** Printed script per position: 0 = none, 1 = devanagari, 2 = tamil, 3 = both. */
+  printed: number[]
   unverified: number[]
-  romanEmpty: number[]
 }
 
 export interface OccasionMeta {
@@ -226,9 +240,10 @@ export interface SongDetail {
   roleOrder: number | null
   page: number
   lyrics: string
-  /** Which Indic script the master copy prints this song in, or null if none. Comes from
-   *  the ~1 KB native map, so it costs nothing and is available before any shard fetch. */
-  nativeScript: NativeScript | null
+  /** Which Indic script the master copy prints this song in ('mixed' when it prints
+   *  both), or null if none. Comes from the eager native index, so it costs nothing and
+   *  is available before any shard fetch. */
+  nativeScript: PrintedScript
   scriptVerified: boolean
 }
 

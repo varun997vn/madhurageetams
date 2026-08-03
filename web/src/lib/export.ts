@@ -30,8 +30,11 @@ function lyricsFor(song: SongDetail, selection?: ScriptSelection): string {
   )
   if (script === 'roman') return song.lyrics
   const doc = selection.docs?.get(song.id)
-  if (!doc || doc.script !== script) return song.lyrics
-  return rowsToText(selection.bilingual ? pairedRows(doc) : nativeRows(doc), selection.bilingual)
+  if (!doc) return song.lyrics
+  return rowsToText(
+    selection.bilingual ? pairedRows(doc, script) : nativeRows(doc, script),
+    selection.bilingual,
+  )
 }
 
 const ATTRIBUTION =

@@ -1,24 +1,23 @@
 /**
- * Turning a song's paired rows into something renderable.
+ * Turning a song's multiscript rows into something renderable.
  *
- * The source records three things that do not line up neatly, and every function here
- * exists to reconcile one of them:
+ * Every song ships one aligned row list with all six scripts as columns, so the old
+ * roman/native/pair reconciliation is gone: rendering a script is picking a column.
+ * Two things still deserve care:
  *
- * 1. Structural headings (pallavi, anupallavi, charaNam, the ragam/thalam line) are
- *    recorded only in the Roman column. The native column has none. So a native-only
- *    reading view gets its section markers by following a pair back to its Roman row.
- * 2. The two columns wrap differently, so 17.8% of pairs have no counterpart on one side.
- *    Those rows are real text, not errors, and must still be shown.
- * 3. A song carries at most one Indic script, so a preference for a script the song does
- *    not have has to fall back rather than render an empty page.
+ * 1. Which column is *source* and which is machine-transliterated — `printed` carries
+ *    that, and the UI says so rather than presenting generated text as the page's own.
+ * 2. Empty cells: a handful of rows exist in one column only (source wrapping); those
+ *    render as blank lines rather than being dropped, so stanza shape survives.
  */
 
-import type { NativeSong, RowPair, ScriptChoice } from './types'
+import type { NativeSong, MultiRow, ScriptChoice } from './types'
+import { ROW_COLUMN } from './types'
 
 /** One line ready to render, in whichever script was asked for. */
 export interface DisplayRow {
   heading: boolean
-  /** Absent when this row exists only in the other column. */
+  /** Absent when this row has no text in the chosen script. */
   native?: string
   roman?: string
 }
@@ -26,96 +25,68 @@ export interface DisplayRow {
 /**
  * Whether to render the script picker at all.
  *
- * A deployment without native data must look like one. Showing three controls with two of
- * them permanently disabled tells the reader the *corpus* lacks those scripts, which is a
- * different and false claim — and it is exactly what shipped when the native shards were
- * missing from a deploy.
+ * A deployment without the multiscript data must look like one: the picker is not
+ * rendered rather than shown disabled, so a missing-data deploy reads as Roman-only
+ * instead of claiming the corpus lacks those scripts.
  */
 export function offersScripts(stats: { nativeScripts: boolean } | null | undefined): boolean {
   return stats?.nativeScripts === true
 }
 
 /**
- * Which script actually renders, given a preference and what the song has.
- *
- * A preference is a wish, not a guarantee: asking for Tamil on a Devanagari song has to
- * resolve to something, and Roman is the one column every song (bar two) carries.
+ * Which script actually renders. Every song carries every script now, so a preference
+ * simply wins; the override still lets a setlist pin one song to a different script.
  */
 export function effectiveScript(
   preference: ScriptChoice,
-  available: NativeSong['script'],
+  _printed?: unknown,
   override?: ScriptChoice | null,
 ): ScriptChoice {
-  const wanted = override ?? preference
-  if (wanted === 'roman') return 'roman'
-  return wanted === available ? wanted : 'roman'
+  return override ?? preference
 }
 
-function romanText(song: NativeSong, index: number): string | undefined {
-  const row = song.roman[index]
-  return row ? row[1] : undefined
-}
-
-function isHeading(song: NativeSong, index: number): boolean {
-  return song.roman[index]?.[0] === 1
+function cell(row: MultiRow, script: ScriptChoice): string {
+  return row[ROW_COLUMN[script]] as string
 }
 
 /**
- * Native lines in reading order, with headings carried across from the Roman column.
- *
- * Rows that exist only in Roman are dropped: they are the other column's wrapping, and
- * showing them here would interleave two scripts in a view the reader asked to be
- * single-script. Roman *headings* are the deliberate exception — they are structural
- * labels rather than lyric text, and without them the song loses its shape.
+ * Lines in reading order for one script. Headings render in the same script — the
+ * source generates them for every column.
  */
-export function nativeRows(song: NativeSong): DisplayRow[] {
+export function nativeRows(song: NativeSong, script: ScriptChoice): DisplayRow[] {
   const out: DisplayRow[] = []
-  for (const [romanIndex, nativeIndex] of song.pairs) {
-    const heading = romanIndex >= 0 && isHeading(song, romanIndex)
-    if (nativeIndex >= 0) {
-      const native = song.native[nativeIndex]
-      if (native !== undefined) out.push({ heading, native })
-    } else if (heading) {
-      const roman = romanText(song, romanIndex)
-      if (roman !== undefined) out.push({ heading: true, roman })
-    }
+  for (const row of song.rows) {
+    const text = cell(row, script)
+    const roman = cell(row, 'roman')
+    if (!text && !roman) continue
+    out.push({ heading: row[0] === 1, native: text || undefined, roman: roman || undefined })
   }
   return out
 }
 
-/** Both columns, for the side-by-side view. Either side may be absent. */
-export function pairedRows(song: NativeSong): DisplayRow[] {
-  const out: DisplayRow[] = []
-  for (const [romanIndex, nativeIndex] of song.pairs) {
-    const heading = romanIndex >= 0 && isHeading(song, romanIndex)
-    const roman = romanIndex >= 0 ? romanText(song, romanIndex) : undefined
-    const native = nativeIndex >= 0 ? song.native[nativeIndex] : undefined
-    if (roman === undefined && native === undefined) continue
-    // A heading spans both columns rather than sitting in one of them, but it keeps both
-    // texts: the ragam/thalam line is printed in the native script too, so a heading often
-    // does have a native counterpart even though the native column records no `kind`.
-    out.push({ heading, roman, native })
-  }
-  return out
+/** The chosen script beside Roman, for the side-by-side view. */
+export function pairedRows(song: NativeSong, script: ScriptChoice): DisplayRow[] {
+  return nativeRows(song, script)
 }
 
 /** The source's own Roman column, used by exports so a bilingual sheet stays consistent. */
 export function romanRows(song: NativeSong): DisplayRow[] {
-  return song.roman.map(([flag, text]) => ({ heading: flag === 1, roman: text }))
+  return song.rows.map((row) => ({
+    heading: row[0] === 1,
+    roman: cell(row, 'roman') || undefined,
+  }))
 }
 
 /**
  * Plain text for the .txt export and the clipboard.
  *
- * Headings keep their own line; a paired row in bilingual mode puts the native line first
- * and indents the Roman beneath it, which is how the printed page reads.
+ * Headings keep their own line; a paired row in bilingual mode puts the native line
+ * first and indents the Roman beneath it, which is how the printed page reads.
  */
 export function rowsToText(rows: DisplayRow[], bilingual: boolean): string {
   const lines: string[] = []
   for (const row of rows) {
     if (row.heading) {
-      // Prefer the native rendering of a section marker when the source printed one, so a
-      // single-script sheet stays single-script.
       lines.push('', row.native ?? row.roman ?? '')
       continue
     }
@@ -137,44 +108,41 @@ export function rowsFor(
   bilingual: boolean,
 ): DisplayRow[] | null {
   if (script === 'roman') return null
-  if (song.script !== script) return null
-  return bilingual ? pairedRows(song) : nativeRows(song)
+  return bilingual ? pairedRows(song, script) : nativeRows(song, script)
 }
 
 /**
  * A BCP-47 tag for the rendered text.
  *
- * Worth setting precisely: it is what lets the OS pick a Devanagari face that suits the
- * language rather than a generic fallback, and it is literally true of the source — a
- * Telugu song really is printed here in Devanagari.
+ * Worth setting precisely: it lets the OS pick a face that suits the language rather
+ * than a generic fallback. The script subtag matters because most songs render in a
+ * script that is not their language's default (a Telugu song read in Devanagari, a
+ * Sanskrit song read in Kannada).
  */
 export function langTag(script: ScriptChoice, language: string): string {
-  if (script === 'tamil') return 'ta'
-  if (script === 'roman') return 'und-Latn'
-  const byLanguage: Record<string, string> = {
-    Sanskrit: 'sa-Deva',
-    Hindi: 'hi-Deva',
-    Marathi: 'mr-Deva',
-    Telugu: 'te-Deva',
-    Kannada: 'kn-Deva',
-    Malayalam: 'ml-Deva',
+  const lang: Record<string, string> = {
+    Sanskrit: 'sa', Hindi: 'hi', Marathi: 'mr', Telugu: 'te',
+    Kannada: 'kn', Malayalam: 'ml', Tamil: 'ta', English: 'en',
   }
-  return byLanguage[language] ?? 'und-Deva'
+  const scriptTag: Record<ScriptChoice, string> = {
+    roman: 'Latn', tamil: 'Taml', devanagari: 'Deva',
+    malayalam: 'Mlym', kannada: 'Knda', telugu: 'Telu',
+  }
+  const base = lang[language] ?? 'und'
+  return `${base}-${scriptTag[script]}`
 }
 
 /** Decode the shard's compact per-song form. */
 export function decodeSong(entry: {
-  s: 'deva' | 'taml' | null
-  rom: [0 | 1, string][]
-  nat: string[]
-  pair: RowPair[]
+  p: 0 | 1 | 2 | 3
+  rows: MultiRow[]
   v: 0 | 1
 }): NativeSong {
+  const printed = entry.p === 1 ? 'devanagari' : entry.p === 2 ? 'tamil'
+    : entry.p === 3 ? 'mixed' : null
   return {
-    script: entry.s === 'deva' ? 'devanagari' : entry.s === 'taml' ? 'tamil' : null,
-    roman: entry.rom,
-    native: entry.nat,
-    pairs: entry.pair,
+    printed,
+    rows: entry.rows,
     verified: entry.v === 1,
   }
 }

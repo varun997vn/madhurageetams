@@ -1,15 +1,13 @@
-"""Stage 35 — native-script shards.
+"""Stage 35 — all-scripts lyric shards.
 
 The source dataset is a separate private repository, so every test that needs it skips
 when $MG_SOURCE is absent. That keeps `pytest` green for a contributor who only has this
 repo, while still failing hard in a real build where the data is present.
 
-These artifacts ship **unencrypted and keyed by song id**, which is what most of the
-assertions below are really pinning. The encrypted bundles are slot-indexed because they
-come from one sorted pass over the parsed PDF; these come from a second, independent
-extraction, so an implicit shared ordering would be an assumption rather than a fact. The
-id list travels with the data instead, and the tests check that it partitions cleanly and
-that every derived array lines up with it.
+These artifacts ship **unencrypted and keyed by song id**. Every song carries all six
+scripts as columns of one aligned row list; `p` records which Indic script the master
+copy actually prints (0 none, 1 devanagari, 2 tamil, 3 both), because that is the line
+between the source's own text and machine transliteration.
 """
 
 from __future__ import annotations
@@ -53,19 +51,23 @@ def index(source: Path) -> list[dict]:
 
 @pytest.fixture(scope="module")
 def records(source: Path) -> dict[int, dict]:
-    return stage.load_records(source)
+    return stage.load_multiscript(source)
 
 
 @pytest.fixture(scope="module")
-def ids(index: list[dict]) -> list[int]:
-    return sorted(entry["id"] for entry in index)
+def verified(source: Path) -> dict[int, int]:
+    return stage.load_verified(source)
 
 
 @pytest.fixture(scope="module")
-def built(ids, records, index):
+def ids(records) -> list[int]:
+    return sorted(records)
+
+
+@pytest.fixture(scope="module")
+def built(ids, records, verified):
     """The shards and index exactly as the stage would write them."""
-    script_by_id = _script_map(index)
-    shards = stage.build_shards(ids, records, script_by_id)
+    shards = stage.build_shards(ids, records, verified)
     written = {}
     for shard in shards:
         gz = deterministic_gzip(canonical_json(shard))
@@ -99,6 +101,11 @@ def test_stage_writes_outside_the_bundle_directory():
     assert stage.WEB_DATA_DIR.parent.name == "public"
 
 
+def test_row_column_order_is_pinned():
+    """The client indexes rows positionally; reordering SCRIPTS would scramble scripts."""
+    assert stage.SCRIPTS == ["roman", "devanagari", "tamil", "malayalam", "kannada", "telugu"]
+
+
 # --------------------------------------------------------------- the id join ----
 
 
@@ -108,11 +115,7 @@ def test_song_count(ids):
 
 
 def test_hand_verified_songs_agree_with_this_pipeline(index):
-    """The two constants test_parse.py pins, checked against the *other* extraction.
-
-    Nothing downstream depends on slot order any more, but agreement here is still what
-    says the two extractions are numbering the same document the same way.
-    """
+    """The two constants test_parse.py pins, checked against the *other* extraction."""
     by_id = {entry["id"]: entry for entry in index}
 
     song = by_id[7344]
@@ -138,16 +141,16 @@ def test_every_occasion_spot_check_resolves(index):
     assert expected <= known
 
 
+def test_multiscript_ids_match_the_primary_extraction(ids, index):
+    """Both datasets in the source repo must cover the same 7,898 songs."""
+    assert sorted(entry["id"] for entry in index) == ids
+
+
 @pytest.mark.skipif(
     not (INTERIM_DIR / "bundles" / "core.json").exists(),
     reason="core.json absent; run stages 10-30 to cross-check against the real corpus",
 )
 def test_id_set_matches_the_shipped_corpus(ids):
-    """Not required for correctness — the join is explicit — but worth knowing.
-
-    If these ever diverged it would mean one extraction is missing songs the other has,
-    which is a data problem rather than an indexing one.
-    """
     core = json.loads((INTERIM_DIR / "bundles" / "core.json").read_text(encoding="utf-8"))
     assert core["ids"] == ids
 
@@ -190,112 +193,70 @@ def test_index_checksums_match_the_bytes_that_would_be_written(built):
         assert entry["bytes"] == len(gz)
 
 
-def test_index_arrays_are_position_indexed(built, index):
-    """`script`/`unverified`/`romanEmpty` index into `ids`, not into corpus slots."""
+def test_index_arrays_are_position_indexed(built, records):
+    """`printed`/`unverified` index into `ids`, not into corpus slots."""
     _, doc = built
-    assert len(doc["script"]) == doc["count"]
-    assert set(doc["script"]) <= {0, 1, 2}
+    assert len(doc["printed"]) == doc["count"]
+    assert set(doc["printed"]) <= {0, 1, 2, 3}
 
-    codes = {None: 0, "deva": 1, "taml": 2}
-    script_by_id = _script_map(index)
     for position, song_id in enumerate(doc["ids"]):
-        assert doc["script"][position] == codes[script_by_id[song_id]]
+        expected = stage.PRINTED_CODES[records[song_id].get("native")]
+        assert doc["printed"][position] == expected
 
-    for key in ("unverified", "romanEmpty"):
-        assert doc[key] == sorted(doc[key])
-        assert all(0 <= p < doc["count"] for p in doc[key])
+    assert doc["unverified"] == sorted(doc["unverified"])
+    assert all(0 <= p < doc["count"] for p in doc["unverified"])
 
 
-def test_script_availability_matches_the_source(built):
+def test_printed_scripts_match_the_verification(built):
+    """The measured composition of the master copy, pinned.
+
+    6,208 songs print Devanagari alone, 1,484 Tamil alone, 200 print BOTH (an Azhvar
+    pasuram prelude before a Devanagari kirtan), and the six English songs print
+    neither. These numbers come from the per-line script census of the PDF.
+    """
     _, doc = built
-    assert doc["script"].count(1) == 6370
-    assert doc["script"].count(2) == 1522
-    assert doc["script"].count(0) == 6
+    assert doc["printed"].count(1) == 6208
+    assert doc["printed"].count(2) == 1484
+    assert doc["printed"].count(3) == 200
+    assert doc["printed"].count(0) == 6
     assert len(doc["unverified"]) == 61
-    assert len(doc["romanEmpty"]) == 2
 
 
 # ------------------------------------------------------------- content invariants ----
 
 
-def test_native_column_round_trips_for_every_song(ids, records, index):
-    """The invariant the shard shape rests on.
-
-    `pair` indexes into `nat`; if the two disagree the reader sees scrambled lines rather
-    than an error, so this is checked across the whole corpus.
-    """
-    script_by_id = _script_map(index)
+def test_every_row_has_seven_fields(ids, records, verified):
     for song_id in ids:
-        script = script_by_id[song_id]
-        song = stage.build_song(records[song_id], script)
-        if script is None:
-            assert song["nat"] == []
+        song = stage.build_song(records[song_id], verified.get(song_id, 0))
+        for row in song["rows"]:
+            assert len(row) == 7, song_id
+            assert row[0] in (0, 1), song_id
+
+
+def test_every_song_has_text_in_every_script(ids, records, verified):
+    """The point of the feature: no script column may be empty for a whole song.
+
+    Even the two Tamil-only ritual entries carry Roman now — the source generates a
+    reverse transliteration where the master copy prints none — so all seven columns
+    must be non-empty for every song that has any lyric rows at all.
+    """
+    for song_id in ids:
+        song = stage.build_song(records[song_id], verified.get(song_id, 0))
+        rows = song["rows"]
+        if not rows:
             continue
-
-        key = "devanagari" if script == "deva" else "tamil"
-        expected = [row["text"] for row in (records[song_id]["lyrics"].get(key) or [])]
-        assert song["nat"] == expected, song_id
-
-        positions = [n for _, n in song["pair"] if n >= 0]
-        assert positions == list(range(len(expected))), song_id
+        for col in range(1, 7):
+            assert any(row[col] for row in rows), (song_id, col)
 
 
-def test_roman_indices_stay_in_range(ids, records, index):
-    script_by_id = _script_map(index)
-    for song_id in ids:
-        song = stage.build_song(records[song_id], script_by_id[song_id])
-        for roman_index, _ in song["pair"]:
-            assert -1 <= roman_index < len(song["rom"]), song_id
-
-
-def test_headings_come_only_from_the_roman_column(ids, records, index):
-    """The native arrays record no `kind`, so every heading flag must trace to Roman."""
-    script_by_id = _script_map(index)
-    headings = sum(
-        sum(1 for flag, _ in stage.build_song(records[i], script_by_id[i])["rom"] if flag == 1)
-        for i in ids
-    )
-    assert headings > 10_000, f"expected ~11.6k structural headings, found {headings}"
-
-
-def test_english_songs_get_no_native_column(records, index):
-    """The six English songs print one column, which the extractor put on *both* sides.
-
-    Sniffing `aligned` would present Roman text as though it were Devanagari, so the script
-    comes from the source index instead. This pins that.
-    """
-    script_by_id = _script_map(index)
-    english = [e["id"] for e in index if e["language"] == "English"]
-    assert len(english) == 6
-    for song_id in english:
-        assert script_by_id[song_id] is None
-        song = stage.build_song(records[song_id], None)
-        assert song["s"] is None
-        assert song["nat"] == []
-        assert song["pair"] == []
-
-
-def test_songs_without_alignment_still_keep_their_lyrics(records, index):
-    """The two Tamil-only ritual entries have native lines, no Roman column, no alignment."""
-    script_by_id = _script_map(index)
-    orphans = [
-        e["id"]
-        for e in index
-        if not (records[e["id"]].get("aligned") or []) and script_by_id[e["id"]]
-    ]
-    assert len(orphans) == 2
-    for song_id in orphans:
-        song = stage.build_song(records[song_id], script_by_id[song_id])
-        assert song["nat"], song_id
-        assert [n for _, n in song["pair"]] == list(range(len(song["nat"])))
-        assert all(r == -1 for r, _ in song["pair"])
-
-
-def _script_map(index: list[dict]) -> dict[int, str | None]:
-    return {
-        entry["id"]: next(
-            (tag for key, tag in stage.SCRIPT_KEYS.items() if key in (entry.get("scripts") or [])),
-            None,
-        )
-        for entry in index
-    }
+def test_headings_exist_in_every_script(ids, records, verified):
+    """Structural markers are transliterated too — a Kannada reader sees ಪಲ್ಲವಿ."""
+    checked = 0
+    for song_id in ids[:2000]:
+        song = stage.build_song(records[song_id], verified.get(song_id, 0))
+        for row in song["rows"]:
+            if row[0] == 1 and row[1]:
+                for col in range(2, 7):
+                    assert row[col], (song_id, col)
+                checked += 1
+    assert checked > 100

@@ -89,7 +89,7 @@ jobs:
           count=$(ls data/*.enc | wc -l)
           [ "$count" -ge 34 ] || { echo "::error::only $count .enc shards found, expected >= 34"; exit 1; }
           bytes=$(du -sb . | cut -f1)
-          [ "$bytes" -lt 20971520 ] || { echo "::error::artifact is $bytes bytes, over the 20 MB budget"; exit 1; }
+          [ "$bytes" -lt 47185920 ] || { echo "::error::artifact is $bytes bytes, over the 45 MB budget"; exit 1; }
 
           set +e
           python ../../build/tools/verify_native_data.py data
