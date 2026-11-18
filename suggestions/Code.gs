@@ -27,10 +27,10 @@ const MAX_LINE = 300;
 const MAX_ADDED = 20;
 const MAX_PER_DAY = 50;
 
-// 'phone' is last on purpose: it was added after the queue was in use, and appending
-// keeps every existing row lined up with its header.
+// 'phone' and 'country' are last on purpose: they were added after the queue was in
+// use, and appending keeps every existing row lined up with its header.
 const COLUMNS = ['id', 'received', 'status', 'songId', 'title', 'script', 'changes',
-  'name', 'note', 'decided', 'commit', 'phone'];
+  'name', 'note', 'decided', 'commit', 'phone', 'country'];
 const COL = {};
 COLUMNS.forEach(function (name, index) { COL[name] = index + 1; });
 
@@ -100,6 +100,8 @@ function receive_(body) {
   if (!/^\d{6,14}$/.test(phone)) return { ok: false, error: 'Please enter a valid phone number.' };
   body.name = name;
   body.contact = code + ' ' + phone;
+  // Optional, and free text: where the reader lives need not match their dialling code.
+  body.country = text_(body.country, 60);
 
   const changes = Array.isArray(body.changes) ? body.changes : [];
   if (changes.length === 0) return { ok: false, error: 'No changed lines were sent.' };
@@ -189,7 +191,7 @@ function store_(props, songId, body, clean) {
     sheet_().appendRow([
       id, new Date(), 'pending', songId, plain_(text_(body.title, 200)), body.script,
       JSON.stringify(clean), plain_(body.name), plain_(text_(body.note, 500)), '', '',
-      plain_(body.contact),
+      plain_(body.contact), plain_(body.country),
     ]);
   } finally {
     lock.releaseLock();
@@ -428,7 +430,8 @@ function summary_(row) {
   if (row[COL.name - 1] || row[COL.phone - 1]) {
     // The Sheet stores a leading apostrophe to keep "+91…" as text; drop it for display.
     html += '<p>From: ' + esc_(row[COL.name - 1]) + ' · ' +
-      esc_(String(row[COL.phone - 1] || '').replace(/^'/, '')) + '</p>';
+      esc_(String(row[COL.phone - 1] || '').replace(/^'/, '')) +
+      (row[COL.country - 1] ? ' · ' + esc_(row[COL.country - 1]) : '') + '</p>';
   }
   if (row[COL.note - 1]) html += '<p>Note: ' + esc_(row[COL.note - 1]) + '</p>';
   html += '<table style="border-collapse:collapse"><tr><th ' + cell + '>Line</th><th ' + cell +

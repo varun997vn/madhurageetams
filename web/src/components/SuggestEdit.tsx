@@ -136,6 +136,7 @@ export function SuggestEdit({
   const [codeChoice, setCodeChoice] = useState('')
   const [otherCode, setOtherCode] = useState('+')
   const [phone, setPhone] = useState('')
+  const [country, setCountry] = useState('')
   const [note, setNote] = useState('')
   const [website, setWebsite] = useState('')
   const [status, setStatus] = useState<Status>('editing')
@@ -234,6 +235,7 @@ export function SuggestEdit({
           name: name.trim(),
           countryCode,
           phone: phone.trim(),
+          country: country.trim(),
           note: note.trim(),
           website,
           token,
@@ -386,9 +388,19 @@ export function SuggestEdit({
             />
           </label>
         </div>
+        <label>
+          <span>Country of residence (optional)</span>
+          <input
+            type="text"
+            value={country}
+            maxLength={60}
+            autoComplete="country-name"
+            onChange={(e) => setCountry(e.target.value)}
+          />
+        </label>
         <p className="script-note">
-          Your name and number go only to the reviewer, in case there is a question about
-          your correction. They are never shown on the site.
+          These details go only to the reviewer, in case there is a question about your
+          correction. They are never shown on the site.
         </p>
         <label>
           <span>Note for the reviewer (optional)</span>

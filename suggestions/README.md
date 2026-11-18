@@ -102,8 +102,9 @@ The endpoint URL is visible in the site's JavaScript, so the script defends itse
 ## Reader details
 
 Every suggestion must carry the reader's name, country code and phone number, so you
-can ask about a doubtful change. They appear in the review email ("From:") and in the
-Sheet's `name` and `phone` columns, and nowhere else: nothing about the reader is
+can ask about a doubtful change; country of residence is optional. They appear in the
+review email ("From:") and in the Sheet's `name`, `phone` and `country` columns, and
+nowhere else: nothing about the reader is
 written to `corrections.json` or the commit. The Sheet therefore holds personal data;
 keep it private and clear out old rows when you no longer need them.
 
