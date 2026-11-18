@@ -99,4 +99,12 @@ The endpoint URL is visible in the site's JavaScript, so the script defends itse
 - at most 40 changed lines per submission, 300 characters per line, 50 submissions a day;
 - a hidden field that only bots fill in.
 
+## Reader details
+
+Every suggestion must carry the reader's name, country code and phone number, so you
+can ask about a doubtful change. They appear in the review email ("From:") and in the
+Sheet's `name` and `phone` columns, and nowhere else: nothing about the reader is
+written to `corrections.json` or the commit. The Sheet therefore holds personal data;
+keep it private and clear out old rows when you no longer need them.
+
 After a password or salt rotation, rerun step 4 and update `UNLOCK_TOKEN`.

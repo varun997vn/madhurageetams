@@ -823,7 +823,12 @@ mark {
 .suggest-lines[data-script='kannada'] { font-family: var(--knda); }
 .suggest-lines[data-script='telugu'] { font-family: var(--telu); }
 .suggest-line { display: flex; align-items: center; gap: 6px; }
-.suggest-line input, .suggest-meta input, .suggest-meta textarea {
+.suggest-phone { display: flex; flex-wrap: wrap; gap: 10px; }
+.suggest-phone > label { flex: 0 1 auto; min-width: 0; }
+.suggest-phone > .suggest-code { flex: 0 0 84px; }
+.suggest-phone > .suggest-number { flex: 1 1 180px; }
+.suggest-meta .script-note { margin: 0; }
+.suggest-line input, .suggest-meta input, .suggest-meta textarea, .suggest-meta select {
   flex: 1; min-width: 0; width: 100%;
   padding: 7px 10px;
   border: 1px solid var(--line-2);
