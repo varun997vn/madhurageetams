@@ -26,6 +26,9 @@ export interface WorkerRequests {
    *  the multi-megabyte native shards, so nothing fetches them by accident. Search and the
    *  inverted index stay Roman-folded and are untouched by this. */
   getNative: { ids: number[] }
+  /** Proof that this session unlocked the corpus, sent with a suggested correction so
+   *  the public intake endpoint can refuse anyone who has no password. */
+  suggestToken: Record<string, never>
   facetValues: { facet: string; prefix: string; limit: number }
   chartData: { spec: 'deity' | 'ragam' | 'composer' | 'language' | 'sunburst'; filters: Filters }
   lock: Record<string, never>
@@ -42,6 +45,7 @@ export interface WorkerResponses {
   getSong: SongDetail | null
   getSongs: SongDetail[]
   getNative: NativeDoc[]
+  suggestToken: { token: string }
   facetValues: { index: number; label: string; count: number }[]
   chartData: ChartData
   lock: { ok: true }

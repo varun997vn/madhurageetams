@@ -1,0 +1,4 @@
+{
+  "_comment": "Web app URL of the Apps Script in suggestions/ (ends in /exec). Empty hides the Suggest button. See suggestions/README.md.",
+  "url": ""
+}

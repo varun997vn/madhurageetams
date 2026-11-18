@@ -89,6 +89,15 @@ def key_check_value(key: bytes, salt: bytes) -> bytes:
     return hashlib.sha256(key + salt + b"mg-kcv").digest()[:KCV_LEN]
 
 
+def suggest_token(key: bytes) -> str:
+    """Proof-of-unlock for the suggestion endpoint. Mirrors suggestToken() in crypto.ts.
+
+    One-way on purpose: the intake script stores this, and must not be holding anything
+    that could decrypt the corpus.
+    """
+    return hashlib.sha256(b"mg-suggest-v1" + key).hexdigest()
+
+
 def deterministic_iv(key: bytes, name: str, plaintext: bytes) -> bytes:
     digest = hashlib.sha256(plaintext).digest()
     mac = hmac.new(key, b"iv|" + name.encode("utf-8") + b"|" + digest, hashlib.sha256)

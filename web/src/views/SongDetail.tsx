@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ScriptPicker } from '../components/ScriptPicker'
+import { SuggestEdit, suggestionsEnabled } from '../components/SuggestEdit'
 import { downloadPdf, downloadText, safeFilename, songToText } from '../lib/export'
 import {
   effectiveScript,
@@ -43,11 +44,13 @@ export function SongDetailView({ songId, onBack }: Props) {
   const [native, setNative] = useState<NativeDoc | null>(null)
   const [missing, setMissing] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     setSong(null)
     setMissing(false)
+    setSuggesting(false)
     void getWorker()
       .call('getSong', { id: songId })
       .then((result) => {
@@ -159,6 +162,11 @@ export function SongDetailView({ songId, onBack }: Props) {
           >
             {exporting ? 'Preparing…' : native ? 'Download .pdf (Roman)' : 'Download .pdf'}
           </button>
+          {suggestionsEnabled && !suggesting ? (
+            <button className="btn" onClick={() => setSuggesting(true)}>
+              Suggest a correction
+            </button>
+          ) : null}
         </div>
 
         {hasScripts ? (
@@ -170,13 +178,25 @@ export function SongDetailView({ songId, onBack }: Props) {
           />
         ) : null}
 
-        <LyricsPanel
-          song={song}
-          native={native}
-          choice={hasScripts ? script.choice : 'roman'}
-          bilingual={script.bilingual}
-          explain={hasScripts}
-        />
+        {suggesting ? (
+          <SuggestEdit
+            // Remounting on a script change drops half-made edits addressed to the
+            // other script's lines, which could not be sent meaningfully anyway.
+            key={hasScripts ? script.choice : 'roman'}
+            song={song}
+            native={native}
+            script={hasScripts ? script.choice : 'roman'}
+            onClose={() => setSuggesting(false)}
+          />
+        ) : (
+          <LyricsPanel
+            song={song}
+            native={native}
+            choice={hasScripts ? script.choice : 'roman'}
+            bilingual={script.bilingual}
+            explain={hasScripts}
+          />
+        )}
       </div>
     </div>
   )

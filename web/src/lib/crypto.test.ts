@@ -21,6 +21,7 @@ const {
   importAesKey,
   keyCheckValue,
   openShard,
+  suggestToken,
   WrongPasswordError,
   CorruptShardError,
 } = await import('./crypto')
@@ -44,6 +45,10 @@ describe('key derivation', () => {
 
   it('reproduces the key check value', async () => {
     expect(await keyCheckValue(keyBytes, base64ToBytes(vectors.salt))).toBe(vectors.kcv)
+  })
+
+  it('reproduces the suggestion proof-of-unlock token', async () => {
+    expect(await suggestToken(keyBytes)).toBe(vectors.suggestToken)
   })
 
   it('produces a different KCV for a wrong password', async () => {

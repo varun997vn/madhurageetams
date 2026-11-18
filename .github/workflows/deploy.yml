@@ -68,6 +68,12 @@ jobs:
           python -m pytest tests/test_fold.py tests/test_crypto.py tests/test_script_shards.py -q
         working-directory: build
 
+      - name: Verify reader corrections are well-formed
+        # corrections.json is committed by the review queue (suggestions/Code.gs) when the
+        # admin accepts a reader's fix. The client skips malformed entries, so a bad commit
+        # would otherwise deploy cleanly and publish nothing.
+        run: python build/tools/verify_corrections.py web/public/data/corrections.json
+
       - run: npm run build
         working-directory: web
 

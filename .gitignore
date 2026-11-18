@@ -12,6 +12,11 @@ build/interim/
 secrets/
 *.password
 password.txt
+# The review queue's GitHub token and unlock token belong in Apps Script's Script
+# Properties only. This repo is public: a committed token is a leaked token.
+*-token.txt
+.clasp.json
+.clasprc.json
 
 # Python
 __pycache__/

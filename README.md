@@ -54,6 +54,7 @@ web/            Vite + React + TypeScript app
                 and the plaintext native-script index and shards
   src/worker/   Owns the key, the corpus, the facet bitmaps and search
   e2e/smoke.mjs Playwright pass over a production build
+suggestions/    Apps Script review queue for reader-suggested corrections
 ```
 
 ---
@@ -135,6 +136,41 @@ Devanagari — a claim about the corpus standing in for a fact about the deploym
 `deploy.yml` now fails rather than shipping that state; set the repository variable
 `ROMAN_ONLY=1` to deploy without native scripts on purpose.
 
+## Corrections
+
+Readers can suggest a fix to any lyric line, in whichever of the six scripts they are
+reading. Suggestions go to a private review queue (a Google Apps Script bound to a
+Sheet, in `suggestions/`), the admin gets an email with the line as it is and as
+suggested, and only an accepted suggestion is published. Setup and day-to-day use are
+in [`suggestions/README.md`](suggestions/README.md).
+
+Accepting commits one entry per changed line to `web/public/data/corrections.json`:
+
+```json
+{ "version": 1, "songs": { "341": [
+  { "s": "telugu", "i": 12, "old": "…", "new": "…", "at": "2026-11-18" }
+] } }
+```
+
+The worker applies these over the shipped data at read time (`web/src/lib/corrections.ts`),
+so publishing a fix is one small commit and the ordinary deploy — no PDF, no password,
+no rebuild. Things to know before changing it:
+
+- **One script per correction.** `s` names the script edited and only that column
+  changes. `i` is the row index in the multiscript rows; for Roman it is the line index
+  in the encrypted Roman lyrics, and the same fix is carried to the Roman column of the
+  side-by-side view by matching text.
+- **`old` is a guard.** An entry applies only while the shipped line still equals `old`,
+  so after a rebuild that already contains the fix it retires itself rather than
+  overwriting a line it was not written against.
+- **Search is not re-indexed.** The inverted index is built offline, so a corrected word
+  becomes searchable only after the next `run_all.py`. Fold accepted fixes into
+  `madhurageetams-source` at that point.
+- **The file is plaintext**, like the native-script shards it mostly corrects; see
+  [Security](#security). A corrected Roman line is therefore public too.
+- The "Suggest a correction" button is rendered only when `web/src/data/suggest.json`
+  holds the review queue's URL.
+
 ## Rebuilding
 
 Requires the source PDF, which is **deliberately not in this repo** (see Security).
@@ -199,7 +235,7 @@ until the obvious songs fall out is a test failure rather than a quietly empty c
 ### Running the tests
 
 ```bash
-cd build && python -m pytest -q      # 486 tests: folding, parsing, enrichment, crypto, scripts
+cd build && python -m pytest -q      # 488 tests: folding, parsing, enrichment, crypto, scripts
 cd web   && npm test                 # folding parity, crypto interop, bitsets, script rows
 cd web   && npm run build && npx vite preview --port 4173
 MG_PASSWORD='…' node e2e/smoke.mjs   # 31 checks in a real browser

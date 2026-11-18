@@ -22,6 +22,7 @@ from mg.crypto import (  # noqa: E402
     deterministic_iv,
     key_check_value,
     seal,
+    suggest_token,
 )
 from mg.util import FIXTURES_DIR, deterministic_gzip  # noqa: E402
 
@@ -67,6 +68,7 @@ def main() -> int:
         "keyLen": 256,
         "derivedKey": b64(key),
         "kcv": b64(key_check_value(key, TEST_SALT)),
+        "suggestToken": suggest_token(key),
         "container": {
             "magic": "MG01",
             "version": 1,

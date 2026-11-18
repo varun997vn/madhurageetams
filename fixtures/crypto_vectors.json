@@ -6,6 +6,7 @@
  "keyLen": 256,
  "derivedKey": "LZNLwurOhPDJYInqjBvc+8o7Qdy+uiLRp4SXeWwd5ec=",
  "kcv": "2f+oN9x7/fI=",
+ "suggestToken": "25d4fc0f06781bbdc84bc5553c322197d3456083758f7acfa382699d7750badf",
  "container": {
   "magic": "MG01",
   "version": 1,

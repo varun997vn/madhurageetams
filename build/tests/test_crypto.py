@@ -23,6 +23,7 @@ from mg.crypto import (
     new_salt,
     open_sealed,
     seal,
+    suggest_token,
     unb64,
 )
 from mg.util import FIXTURES_DIR, deterministic_gzip
@@ -38,6 +39,10 @@ def test_derived_key_matches_fixture():
 
 def test_key_check_value_matches_fixture():
     assert b64(key_check_value(KEY, unb64(VECTORS["salt"]))) == VECTORS["kcv"]
+
+
+def test_suggest_token_matches_fixture():
+    assert suggest_token(KEY) == VECTORS["suggestToken"]
 
 
 @pytest.mark.parametrize("sample", VECTORS["samples"], ids=lambda s: s["name"])
