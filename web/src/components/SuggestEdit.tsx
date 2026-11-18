@@ -1,14 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import suggestConfig from '../data/suggest.json'
+import type { Correction } from '../lib/corrections'
 import { langTag } from '../lib/scriptRows'
 import { getWorker } from '../lib/workerClient'
-import {
-  ROW_COLUMN,
-  SCRIPT_LABELS,
-  type NativeDoc,
-  type ScriptChoice,
-  type SongDetail,
-} from '../lib/types'
+import { SCRIPT_LABELS, type EditableLine, type ScriptChoice, type SongDetail } from '../lib/types'
 
 /**
  * Where suggestions are sent: the Apps Script web app in `suggestions/`.
@@ -22,61 +17,121 @@ export const SUGGEST_URL: string =
 
 export const suggestionsEnabled = SUGGEST_URL !== ''
 
-/** Mirrors the limits enforced by suggestions/Code.gs, so a reader hears about them here. */
+/** Mirror the limits enforced by suggestions/Code.gs, so a reader hears about them here. */
 const MAX_CHANGES = 40
 const MAX_LINE = 300
+const MAX_ADDED = 20
 
-interface Line {
-  /** Index the correction is addressed by: row index, or line index for Roman. */
-  i: number
-  text: string
+/** One change as sent for review: a Correction without the script and date. */
+export type Change = Omit<Correction, 's' | 'at'>
+
+/** A row of the editor: a line that exists (`source`), or one the reader is adding. */
+export interface Draft {
+  key: number
+  source?: EditableLine
+  value: string
+  removed: boolean
 }
 
-/** The lines a reader may correct, in the script they are currently reading. */
-export function editableLines(
-  song: SongDetail,
-  native: NativeDoc | null,
-  script: ScriptChoice,
-): Line[] | null {
-  if (script === 'roman') {
-    return song.lyrics
-      .split('\n')
-      .map((text, i) => ({ i, text }))
-      .filter((line) => line.text.trim() !== '')
+export function toDrafts(lines: EditableLine[]): Draft[] {
+  return lines.map((source, key) => ({ key, source, value: source.text, removed: false }))
+}
+
+/**
+ * Turn the edited list into changes.
+ *
+ * Order matters, because each change is applied against the result of the ones before
+ * it: changed and removed lines first, while every address still means what the reader
+ * saw, then added lines from the bottom up, so adding lines never renumbers an address
+ * that a later change in the same batch still needs.
+ */
+export function buildChanges(drafts: Draft[]): Change[] {
+  const edits: Change[] = []
+  const inserts: Change[] = []
+  let anchor: { i: number; n: number; old: string | null } = { i: -1, n: 0, old: null }
+  let pending: string[] = []
+
+  const flush = () => {
+    if (pending.length === 0) return
+    inserts.push({ i: anchor.i, ...(anchor.n ? { n: anchor.n } : {}), old: anchor.old, add: pending })
+    pending = []
   }
-  if (!native) return null
-  const column = ROW_COLUMN[script]
-  const out: Line[] = []
-  native.rows.forEach((row, i) => {
-    const text = row[column] as string
-    // Headings (Pallavi, Charanam…) are generated labels, not lyric text.
-    if (row[0] === 0 && text) out.push({ i, text })
-  })
-  return out
+
+  for (const draft of drafts) {
+    const source = draft.source
+    if (!source) {
+      const text = draft.value.trim()
+      if (text) pending.push(text)
+      continue
+    }
+    flush()
+    const address = { i: source.i, ...(source.n ? { n: source.n } : {}) }
+    const value = draft.value.trimEnd()
+    if (source.kind !== 'line' || (!draft.removed && value === source.text)) {
+      anchor = { i: source.i, n: source.n, old: source.text }
+    } else if (draft.removed || value.trim() === '') {
+      // Clearing a line means the same as removing it.
+      edits.push({ ...address, old: source.text, del: true })
+      anchor = { i: source.i, n: source.n, old: null }
+    } else {
+      edits.push({ ...address, old: source.text, new: value })
+      anchor = { i: source.i, n: source.n, old: value }
+    }
+  }
+  flush()
+
+  inserts.sort((a, b) => b.i - a.i || (b.n ?? 0) - (a.n ?? 0))
+  return [...edits, ...inserts]
 }
 
 type Status = 'editing' | 'sending' | 'sent' | 'error'
 
 export function SuggestEdit({
   song,
-  native,
   script,
   onClose,
 }: {
   song: SongDetail
-  native: NativeDoc | null
   script: ScriptChoice
   onClose: () => void
 }) {
-  const lines = useMemo(() => editableLines(song, native, script), [song, native, script])
-  const [edits, setEdits] = useState<Record<number, string>>({})
+  const [drafts, setDrafts] = useState<Draft[] | null>(null)
+  const [unavailable, setUnavailable] = useState(false)
   const [name, setName] = useState('')
   const [note, setNote] = useState('')
   const [website, setWebsite] = useState('')
   const [status, setStatus] = useState<Status>('editing')
   const [error, setError] = useState('')
+  const nextKey = useRef(1_000_000)
+  const focusKey = useRef<number | null>(null)
 
-  if (!lines) {
+  useEffect(() => {
+    let cancelled = false
+    void getWorker()
+      .call('getEditable', { id: song.id, script })
+      .then((lines) => {
+        if (cancelled) return
+        if (lines) setDrafts(toDrafts(lines))
+        else setUnavailable(true)
+      })
+      .catch(() => !cancelled && setUnavailable(true))
+    return () => {
+      cancelled = true
+    }
+  }, [song.id, script])
+
+  if (unavailable) {
+    return (
+      <div className="suggest">
+        <p className="suggest-intro">
+          The {SCRIPT_LABELS[script]} lyrics could not be loaded for editing. Please try again.
+        </p>
+        <button className="btn" onClick={onClose}>Back to the lyrics</button>
+      </div>
+    )
+  }
+
+  if (!drafts) {
     return (
       <div className="suggest">
         <span className="spinner" aria-hidden="true" /> Loading {SCRIPT_LABELS[script]}…
@@ -96,16 +151,29 @@ export function SuggestEdit({
     )
   }
 
-  const changes = lines
-    .filter((line) => edits[line.i] !== undefined && edits[line.i]!.trimEnd() !== line.text)
-    .map((line) => ({ i: line.i, old: line.text, new: edits[line.i]!.trimEnd() }))
-
+  const changes = buildChanges(drafts)
+  const longest = Math.max(0, ...drafts.map((d) => d.value.trim().length))
   const problem =
     changes.length > MAX_CHANGES
-      ? `Please send at most ${MAX_CHANGES} changed lines at a time.`
-      : changes.some((c) => c.new.length > MAX_LINE)
+      ? `Please send at most ${MAX_CHANGES} changes at a time.`
+      : longest > MAX_LINE
         ? `A line is longer than ${MAX_LINE} characters.`
-        : ''
+        : changes.some((c) => (c.add?.length ?? 0) > MAX_ADDED)
+          ? `Please add at most ${MAX_ADDED} lines in one place.`
+          : ''
+
+  const update = (key: number, patch: Partial<Draft>) =>
+    setDrafts(drafts.map((d) => (d.key === key ? { ...d, ...patch } : d)))
+
+  /** Put an empty new line directly after the given row, or first when `after` is null. */
+  const addAfter = (after: number | null) => {
+    const key = nextKey.current++
+    focusKey.current = key
+    const fresh: Draft = { key, value: '', removed: false }
+    if (after === null) return setDrafts([fresh, ...drafts])
+    const at = drafts.findIndex((d) => d.key === after)
+    setDrafts([...drafts.slice(0, at + 1), fresh, ...drafts.slice(at + 1)])
+  }
 
   const submit = async () => {
     setStatus('sending')
@@ -140,41 +208,85 @@ export function SuggestEdit({
     }
   }
 
+  const busy = status === 'sending'
+
   return (
     <div className="suggest">
       <p className="suggest-intro">
-        Correct any line in <strong>{SCRIPT_LABELS[script]}</strong>, then send. Only the
-        lines you change are sent, and nothing changes on the site until it is reviewed.
-        To correct another script, pick it in the Language menu first.
+        Edit, add or remove lines in <strong>{SCRIPT_LABELS[script]}</strong>, then send.
+        Only your changes are sent, and nothing changes on the site until they are
+        reviewed. To correct another script, pick it in the Language menu first.
       </p>
 
       <div className="suggest-lines" data-script={script} lang={langTag(script, song.language)}>
-        {lines.map((line) => {
-          const value = edits[line.i] ?? line.text
-          const changed = value.trimEnd() !== line.text
+        <button className="suggest-add" disabled={busy} onClick={() => addAfter(null)}>
+          + Add a line at the top
+        </button>
+
+        {drafts.map((draft) => {
+          const source = draft.source
+          if (source?.kind === 'heading') {
+            return <div key={draft.key} className="lyric-head">{source.text}</div>
+          }
+          if (source?.kind === 'blank') {
+            return <div key={draft.key} className="suggest-gap" aria-hidden="true" />
+          }
+          const changed = !source || draft.removed || draft.value.trimEnd() !== source.text
+          const state = !source ? 'is-new' : draft.removed ? 'is-removed' : changed ? 'is-changed' : ''
           return (
-            <div key={line.i} className={`suggest-line ${changed ? 'is-changed' : ''}`}>
+            <div key={draft.key} className={`suggest-line ${state}`}>
               <input
                 type="text"
-                value={value}
-                aria-label={`Line ${line.i + 1}`}
+                value={draft.value}
+                disabled={draft.removed || busy}
+                placeholder={source ? undefined : 'New line'}
+                aria-label={source ? 'Lyric line' : 'New lyric line'}
                 spellCheck={false}
                 autoCapitalize="off"
                 autoCorrect="off"
-                onChange={(event) => setEdits({ ...edits, [line.i]: event.target.value })}
+                ref={(element) => {
+                  if (element && focusKey.current === draft.key) {
+                    focusKey.current = null
+                    element.focus()
+                  }
+                }}
+                onChange={(event) => update(draft.key, { value: event.target.value })}
               />
-              {changed ? (
+              {source && changed ? (
                 <button
                   className="btn btn-ghost btn-sm"
-                  title="Undo this change"
-                  onClick={() => {
-                    const next = { ...edits }
-                    delete next[line.i]
-                    setEdits(next)
-                  }}
+                  disabled={busy}
+                  title="Put this line back as it was"
+                  onClick={() => update(draft.key, { value: source.text, removed: false })}
                 >
                   Undo
                 </button>
+              ) : null}
+              {!draft.removed ? (
+                <>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={busy}
+                    title="Add a line below this one"
+                    aria-label="Add a line below this one"
+                    onClick={() => addAfter(draft.key)}
+                  >
+                    +
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={busy}
+                    title={source ? 'Remove this line' : 'Discard this new line'}
+                    aria-label={source ? 'Remove this line' : 'Discard this new line'}
+                    onClick={() =>
+                      source
+                        ? update(draft.key, { removed: true })
+                        : setDrafts(drafts.filter((d) => d.key !== draft.key))
+                    }
+                  >
+                    ✕
+                  </button>
+                </>
               ) : null}
             </div>
           )
@@ -208,16 +320,16 @@ export function SuggestEdit({
       <div className="suggest-actions">
         <button
           className="btn btn-primary"
-          disabled={changes.length === 0 || problem !== '' || status === 'sending'}
+          disabled={changes.length === 0 || problem !== '' || busy}
           onClick={submit}
         >
-          {status === 'sending'
+          {busy
             ? 'Sending…'
             : changes.length === 0
               ? 'Send for review'
               : `Send ${changes.length} ${changes.length === 1 ? 'change' : 'changes'} for review`}
         </button>
-        <button className="btn" disabled={status === 'sending'} onClick={onClose}>
+        <button className="btn" disabled={busy} onClick={onClose}>
           Cancel
         </button>
       </div>

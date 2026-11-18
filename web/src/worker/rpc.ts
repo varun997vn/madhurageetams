@@ -8,10 +8,12 @@
 
 import type {
   CorpusStats,
+  EditableLine,
   Filters,
   NativeDoc,
   QueryRequest,
   QueryResponse,
+  ScriptChoice,
   SiteMeta,
   SongDetail,
 } from '../lib/types'
@@ -29,6 +31,9 @@ export interface WorkerRequests {
   /** Proof that this session unlocked the corpus, sent with a suggested correction so
    *  the public intake endpoint can refuse anyone who has no password. */
   suggestToken: Record<string, never>
+  /** One script's lines as they currently read, each with the address a correction
+   *  to it would use. Null when that script's data is unavailable. */
+  getEditable: { id: number; script: ScriptChoice }
   facetValues: { facet: string; prefix: string; limit: number }
   chartData: { spec: 'deity' | 'ragam' | 'composer' | 'language' | 'sunburst'; filters: Filters }
   lock: Record<string, never>
@@ -46,6 +51,7 @@ export interface WorkerResponses {
   getSongs: SongDetail[]
   getNative: NativeDoc[]
   suggestToken: { token: string }
+  getEditable: EditableLine[] | null
   facetValues: { index: number; label: string; count: number }[]
   chartData: ChartData
   lock: { ok: true }

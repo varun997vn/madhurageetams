@@ -138,31 +138,42 @@ Devanagari — a claim about the corpus standing in for a fact about the deploym
 
 ## Corrections
 
-Readers can suggest a fix to any lyric line, in whichever of the six scripts they are
-reading. Suggestions go to a private review queue (a Google Apps Script bound to a
-Sheet, in `suggestions/`), the admin gets an email with the line as it is and as
-suggested, and only an accepted suggestion is published. Setup and day-to-day use are
-in [`suggestions/README.md`](suggestions/README.md).
+Readers can change, add or remove lyric lines, in whichever of the six scripts they are
+reading. Suggestions go to a private review queue (a Google Apps Script and a Sheet, in
+`suggestions/`), the admin gets an email with each line as it is and as suggested, and
+only an accepted suggestion is published. Setup and day-to-day use are in
+[`suggestions/README.md`](suggestions/README.md).
 
-Accepting commits one entry per changed line to `web/public/data/corrections.json`:
+Accepting commits one entry per change to `web/public/data/corrections.json`:
 
 ```json
 { "version": 1, "songs": { "341": [
-  { "s": "telugu", "i": 12, "old": "…", "new": "…", "at": "2026-11-18" }
+  { "s": "telugu", "i": 12, "old": "…", "new": "…", "at": "2026-11-18" },
+  { "s": "telugu", "i": 13, "old": "…", "del": true },
+  { "s": "telugu", "i": 14, "old": "…", "add": ["…", "…"] },
+  { "s": "telugu", "i": 14, "n": 2, "old": "…", "new": "…" }
 ] } }
 ```
 
-The worker applies these over the shipped data at read time (`web/src/lib/corrections.ts`),
-so publishing a fix is one small commit and the ordinary deploy — no PDF, no password,
-no rebuild. Things to know before changing it:
+Those are: change line 12, remove line 13, add two lines after line 14, then change the
+second of the added lines. The worker applies entries over the shipped data at read time
+(`web/src/lib/corrections.ts`, which documents the format in full), so publishing a fix
+is one small commit and the ordinary deploy — no PDF, no password, no rebuild. Things to
+know before changing it:
 
 - **One script per correction.** `s` names the script edited and only that column
-  changes. `i` is the row index in the multiscript rows; for Roman it is the line index
-  in the encrypted Roman lyrics, and the same fix is carried to the Roman column of the
+  changes. A line added in Telugu exists in Telugu only; a line removed from Telugu is
+  still there in the other five.
+- **Addresses count shipped lines.** `i` is the row index in the multiscript rows as
+  shipped (for Roman, the line index in the encrypted Roman lyrics), so earlier
+  corrections never renumber it. `n` picks a reader-added line after it; `i: -1` is the
+  top of the song. Roman corrections are carried to the Roman column of the
   side-by-side view by matching text.
-- **`old` is a guard.** An entry applies only while the shipped line still equals `old`,
-  so after a rebuild that already contains the fix it retires itself rather than
-  overwriting a line it was not written against.
+- **Order matters, and `old` is a guard.** Entries apply in order, each against the
+  result of the ones before, and only while the line still reads `old`. After a rebuild
+  that already contains a fix, its entry retires itself rather than overwriting a line
+  it was not written against. Deleting an entry by hand can likewise retire later
+  entries that were built on it.
 - **Search is not re-indexed.** The inverted index is built offline, so a corrected word
   becomes searchable only after the next `run_all.py`. Fold accepted fixes into
   `madhurageetams-source` at that point.

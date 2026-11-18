@@ -12,7 +12,7 @@
  */
 
 import type { NativeSong, MultiRow, ScriptChoice } from './types'
-import { ROW_COLUMN } from './types'
+import { REMOVED, ROW_COLUMN } from './types'
 
 /** One line ready to render, in whichever script was asked for. */
 export interface DisplayRow {
@@ -54,27 +54,42 @@ function cell(row: MultiRow, script: ScriptChoice): string {
  * source generates them for every column.
  */
 export function nativeRows(song: NativeSong, script: ScriptChoice): DisplayRow[] {
+  return displayRows(song, script, false)
+}
+
+/**
+ * The chosen script beside Roman, for the side-by-side view.
+ *
+ * Differs from `nativeRows` only for lines an accepted correction removed from this
+ * script (or added to Roman alone): on its own the script simply has no such line, but
+ * beside Roman the Roman line still has to appear, with nothing next to it.
+ */
+export function pairedRows(song: NativeSong, script: ScriptChoice): DisplayRow[] {
+  return displayRows(song, script, true)
+}
+
+function displayRows(song: NativeSong, script: ScriptChoice, paired: boolean): DisplayRow[] {
   const out: DisplayRow[] = []
   for (const row of song.rows) {
-    const text = cell(row, script)
-    const roman = cell(row, 'roman')
+    const rawText = cell(row, script)
+    const rawRoman = cell(row, 'roman')
+    const text = rawText === REMOVED ? '' : rawText
+    const roman = rawRoman === REMOVED ? '' : rawRoman
     if (!text && !roman) continue
+    if (rawText === REMOVED && !paired) continue
     out.push({ heading: row[0] === 1, native: text || undefined, roman: roman || undefined })
   }
   return out
 }
 
-/** The chosen script beside Roman, for the side-by-side view. */
-export function pairedRows(song: NativeSong, script: ScriptChoice): DisplayRow[] {
-  return nativeRows(song, script)
-}
-
 /** The source's own Roman column, used by exports so a bilingual sheet stays consistent. */
 export function romanRows(song: NativeSong): DisplayRow[] {
-  return song.rows.map((row) => ({
-    heading: row[0] === 1,
-    roman: cell(row, 'roman') || undefined,
-  }))
+  return song.rows
+    .filter((row) => cell(row, 'roman') !== REMOVED)
+    .map((row) => ({
+      heading: row[0] === 1,
+      roman: cell(row, 'roman') || undefined,
+    }))
 }
 
 /**

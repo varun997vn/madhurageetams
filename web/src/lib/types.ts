@@ -79,6 +79,14 @@ export const SCRIPT_CHOICES: ScriptChoice[] = [
  *  arithmetic left on the client. */
 export type MultiRow = [0 | 1, string, string, string, string, string, string]
 
+/**
+ * "No line here" in one script's column, written only by lib/corrections.ts when an
+ * accepted correction removes a line or adds one in another script. Distinct from an
+ * empty cell, which the source uses for wrapping and which renders as a blank line.
+ * lib/scriptRows.ts is the only reader, and it never lets this reach the page.
+ */
+export const REMOVED = '\u0000'
+
 /** Column of each script inside a MultiRow. */
 export const ROW_COLUMN: Record<ScriptChoice, number> = {
   roman: 1,
@@ -100,6 +108,15 @@ export interface NativeSong {
 export interface NativeDoc extends NativeSong {
   id: number
   slot: number
+}
+
+/** One line as offered for correction, with the address a correction would use. */
+export interface EditableLine {
+  i: number
+  n: number
+  text: string
+  /** Headings and blank lines are shown for orientation but are not editable. */
+  kind: 'line' | 'heading' | 'blank'
 }
 
 export interface NativeShard {

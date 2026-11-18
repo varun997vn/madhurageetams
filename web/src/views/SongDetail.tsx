@@ -184,7 +184,6 @@ export function SongDetailView({ songId, onBack }: Props) {
             // other script's lines, which could not be sent meaningfully anyway.
             key={hasScripts ? script.choice : 'roman'}
             song={song}
-            native={native}
             script={hasScripts ? script.choice : 'roman'}
             onClose={() => setSuggesting(false)}
           />
