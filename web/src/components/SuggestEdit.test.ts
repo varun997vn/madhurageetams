@@ -10,7 +10,7 @@ vi.mock('../lib/workerClient', () => ({ getWorker: () => ({}) }))
 
 import { applyToRoman, resolveLines, type Correction } from '../lib/corrections'
 import type { EditableLine } from '../lib/types'
-import { buildChanges, toDrafts, type Draft } from './SuggestEdit'
+import { buildChanges, contactProblem, toDrafts, type Draft } from './SuggestEdit'
 
 const base = ['one', 'two', '', 'three', 'four']
 
@@ -35,6 +35,24 @@ function roundTrip(earlier: Correction[], edit: (drafts: Draft[]) => Draft[]) {
   expect(result).toEqual(seen(drafts))
   return changes
 }
+
+describe('contactProblem', () => {
+  it('requires a name, a country code and a phone number', () => {
+    expect(contactProblem('', '+91', '9876543210')).toMatch(/name/)
+    expect(contactProblem('Asha', '', '9876543210')).toMatch(/country code/)
+    expect(contactProblem('Asha', '91', '9876543210')).toMatch(/country code/)
+    expect(contactProblem('Asha', '+0', '9876543210')).toMatch(/country code/)
+    expect(contactProblem('Asha', '+91', '')).toMatch(/phone/)
+    expect(contactProblem('Asha', '+91', '12345')).toMatch(/phone/)
+    expect(contactProblem('Asha', '+91', 'not a number')).toMatch(/phone/)
+  })
+
+  it('accepts usual ways of writing a number', () => {
+    expect(contactProblem('Asha', '+91', '98765 43210')).toBe('')
+    expect(contactProblem('Asha', '+1', '(415) 555-0100')).toBe('')
+    expect(contactProblem('Asha', '+971', '50.123.4567')).toBe('')
+  })
+})
 
 describe('buildChanges', () => {
   it('sends nothing when nothing changed', () => {

@@ -22,6 +22,41 @@ const MAX_CHANGES = 40
 const MAX_LINE = 300
 const MAX_ADDED = 20
 
+/**
+ * Dialling codes offered first. Chosen for where this sampradaya's readers are; anyone
+ * else picks "Other" and types theirs, so the list never has to be complete.
+ */
+const COUNTRY_CODES: [code: string, label: string][] = [
+  ['+91', 'India'],
+  ['+1', 'USA / Canada'],
+  ['+44', 'United Kingdom'],
+  ['+65', 'Singapore'],
+  ['+60', 'Malaysia'],
+  ['+971', 'UAE'],
+  ['+61', 'Australia'],
+  ['+64', 'New Zealand'],
+  ['+94', 'Sri Lanka'],
+  ['+49', 'Germany'],
+  ['+33', 'France'],
+  ['+31', 'Netherlands'],
+  ['+41', 'Switzerland'],
+  ['+974', 'Qatar'],
+  ['+968', 'Oman'],
+  ['+973', 'Bahrain'],
+  ['+965', 'Kuwait'],
+  ['+966', 'Saudi Arabia'],
+  ['+27', 'South Africa'],
+  ['+81', 'Japan'],
+]
+
+/** Same rules as suggestions/Code.gs, which is the one that actually enforces them. */
+export function contactProblem(name: string, code: string, phone: string): string {
+  if (name.trim().length < 2) return 'Please enter your name.'
+  if (!/^\+[1-9]\d{0,3}$/.test(code.trim())) return 'Please choose your country code.'
+  if (!/^\d{6,14}$/.test(phone.replace(/[\s().-]/g, ''))) return 'Please enter a valid phone number.'
+  return ''
+}
+
 /** One change as sent for review: a Correction without the script and date. */
 export type Change = Omit<Correction, 's' | 'at'>
 
@@ -98,6 +133,10 @@ export function SuggestEdit({
   const [drafts, setDrafts] = useState<Draft[] | null>(null)
   const [unavailable, setUnavailable] = useState(false)
   const [name, setName] = useState('')
+  const [codeChoice, setCodeChoice] = useState('')
+  const [otherCode, setOtherCode] = useState('+')
+  const [phone, setPhone] = useState('')
+  const [country, setCountry] = useState('')
   const [note, setNote] = useState('')
   const [website, setWebsite] = useState('')
   const [status, setStatus] = useState<Status>('editing')
@@ -162,6 +201,10 @@ export function SuggestEdit({
           ? `Please add at most ${MAX_ADDED} lines in one place.`
           : ''
 
+  const countryCode = codeChoice === 'other' ? otherCode.trim() : codeChoice
+  // Shown only once there is something to send, so the form does not open on an error.
+  const contact = changes.length > 0 ? contactProblem(name, countryCode, phone) : ''
+
   const update = (key: number, patch: Partial<Draft>) =>
     setDrafts(drafts.map((d) => (d.key === key ? { ...d, ...patch } : d)))
 
@@ -190,6 +233,9 @@ export function SuggestEdit({
           script,
           changes,
           name: name.trim(),
+          countryCode,
+          phone: phone.trim(),
+          country: country.trim(),
           note: note.trim(),
           website,
           token,
@@ -295,9 +341,67 @@ export function SuggestEdit({
 
       <div className="suggest-meta">
         <label>
-          <span>Your name (optional)</span>
-          <input type="text" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+          <span>Your name</span>
+          <input
+            type="text"
+            value={name}
+            maxLength={80}
+            required
+            autoComplete="name"
+            onChange={(e) => setName(e.target.value)}
+          />
         </label>
+        <div className="suggest-phone">
+          <label>
+            <span>Country code</span>
+            <select value={codeChoice} required onChange={(e) => setCodeChoice(e.target.value)}>
+              <option value="">Select…</option>
+              {COUNTRY_CODES.map(([code, label]) => (
+                <option key={code} value={code}>{`${label} (${code})`}</option>
+              ))}
+              <option value="other">Other…</option>
+            </select>
+          </label>
+          {codeChoice === 'other' ? (
+            <label className="suggest-code">
+              <span>Code</span>
+              <input
+                type="tel"
+                value={otherCode}
+                maxLength={5}
+                required
+                placeholder="+00"
+                onChange={(e) => setOtherCode(e.target.value)}
+              />
+            </label>
+          ) : null}
+          <label className="suggest-number">
+            <span>Phone number</span>
+            <input
+              type="tel"
+              value={phone}
+              maxLength={20}
+              required
+              inputMode="tel"
+              autoComplete="tel-national"
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </label>
+        </div>
+        <label>
+          <span>Country of residence (optional)</span>
+          <input
+            type="text"
+            value={country}
+            maxLength={60}
+            autoComplete="country-name"
+            onChange={(e) => setCountry(e.target.value)}
+          />
+        </label>
+        <p className="script-note">
+          These details go only to the reviewer, in case there is a question about your
+          correction. They are never shown on the site.
+        </p>
         <label>
           <span>Note for the reviewer (optional)</span>
           <textarea value={note} maxLength={500} rows={2} onChange={(e) => setNote(e.target.value)} />
@@ -315,12 +419,14 @@ export function SuggestEdit({
         />
       </div>
 
-      {problem || error ? <p className="script-warn" role="alert">{problem || error}</p> : null}
+      {problem || contact || error ? (
+        <p className="script-warn" role="alert">{problem || contact || error}</p>
+      ) : null}
 
       <div className="suggest-actions">
         <button
           className="btn btn-primary"
-          disabled={changes.length === 0 || problem !== '' || busy}
+          disabled={changes.length === 0 || problem !== '' || contact !== '' || busy}
           onClick={submit}
         >
           {busy
