@@ -65,14 +65,24 @@ as a whole. To take only part of one, reject it and add the lines you want to
 Accepting commits to `main` as you, and the site redeploys in a few minutes. Readers
 see the fix on their next visit.
 
-To undo an accepted correction, delete its entry from
-`web/public/data/corrections.json` and push.
+To undo an accepted correction, delete its entries from
+`web/public/data/corrections.json` and push. Entries for a song apply in order, so
+undo the newest first: removing an older one can switch off later ones built on it.
+
+If the email never arrives, the suggestion is still in the Sheet as `pending`, with the
+reason in its `commit` column. If the form itself reports "The review queue is not set
+up correctly", the text in brackets is the cause; Apps Script → Executions has the full
+error.
 
 ## What an accepted correction changes
 
-- Only the script the reader edited. A Telugu fix does not touch the Devanagari line.
-- Each entry records the text it replaced and applies only while the shipped line still
-  reads that way, so an entry can never overwrite a line it was not written against.
+- Readers can change a line, remove a line, or add lines anywhere, including at the top.
+  In the email, the Line column counts lines as originally shipped; "12 +2" means the
+  second line that was added after line 12.
+- Only the script the reader edited. A Telugu fix does not touch the Devanagari line,
+  and a line added or removed in Telugu is added or removed in Telugu only.
+- Each entry records the text it expects and applies only while the line still reads
+  that way, so an entry can never overwrite a line it was not written against.
 - Search is not re-indexed. A corrected word becomes searchable after the next offline
   rebuild; the reading view, exports and print sheet are correct immediately.
 

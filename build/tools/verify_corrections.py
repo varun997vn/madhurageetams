@@ -45,20 +45,63 @@ def check(doc: object) -> list[str]:
             if not isinstance(entry, dict):
                 errors.append(f"{where}: not an object")
                 continue
-            if entry.get("s") not in SCRIPTS:
-                errors.append(f"{where}: unknown script {entry.get('s')!r}")
-            index = entry.get("i")
-            if not isinstance(index, int) or isinstance(index, bool) or index < 0:
-                errors.append(f"{where}: 'i' must be a non-negative integer")
-            for field in ("old", "new"):
-                text = entry.get(field)
-                if not isinstance(text, str):
-                    errors.append(f"{where}: '{field}' must be a string")
-                elif len(text) > MAX_LINE or "\n" in text or "\r" in text:
-                    errors.append(f"{where}: '{field}' is over {MAX_LINE} chars or spans lines")
-            if entry.get("old") == entry.get("new"):
-                errors.append(f"{where}: 'old' and 'new' are identical")
+            errors.extend(f"{where}: {problem}" for problem in check_entry(entry))
     return errors
+
+
+def is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def is_line(value: object) -> bool:
+    return (isinstance(value, str) and len(value) <= MAX_LINE
+            and not any(ch in value for ch in "\n\r\x00"))
+
+
+def check_entry(entry: dict) -> list[str]:
+    """Mirror of wellFormed() in web/src/lib/corrections.ts, which documents the format.
+
+    An entry changes ({"new"}), removes ({"del": true}) or adds lines after ({"add": [...]})
+    the line at address (i, n) in script s.
+    """
+    problems: list[str] = []
+    if entry.get("s") not in SCRIPTS:
+        problems.append(f"unknown script {entry.get('s')!r}")
+    index = entry.get("i")
+    if not is_int(index) or index < -1:
+        problems.append("'i' must be an integer >= -1")
+    n = entry.get("n", 0)
+    if not is_int(n) or n < 0:
+        problems.append("'n' must be a non-negative integer")
+    old = entry.get("old")
+
+    kinds = [k for k in ("new", "del", "add") if k in entry]
+    if len(kinds) != 1:
+        problems.append("needs exactly one of 'new', 'del', 'add'")
+        return problems
+
+    if "add" in entry:
+        if old is not None and not is_line(old):
+            problems.append("'old' must be null or a single line")
+        added = entry["add"]
+        if not isinstance(added, list) or not added:
+            problems.append("'add' must be a non-empty list")
+        elif not all(is_line(text) and text.strip() for text in added):
+            problems.append(f"'add' lines must be non-empty, single-line, <= {MAX_LINE} chars")
+        return problems
+
+    if index == -1 and n == 0:
+        problems.append("only 'add' may address the top anchor (i=-1, n=0)")
+    if not is_line(old):
+        problems.append("'old' must be a single line")
+    if "del" in entry:
+        if entry["del"] is not True:
+            problems.append("'del' must be true")
+    elif not is_line(entry["new"]) or not entry["new"].strip():
+        problems.append("'new' must be a non-empty single line")
+    elif entry["new"] == old:
+        problems.append("'old' and 'new' are identical")
+    return problems
 
 
 def main(argv: list[str]) -> int:

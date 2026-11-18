@@ -24,6 +24,7 @@ const SHEET_NAME = 'Suggestions';
 const SCRIPTS = ['roman', 'devanagari', 'tamil', 'malayalam', 'kannada', 'telugu'];
 const MAX_CHANGES = 40;
 const MAX_LINE = 300;
+const MAX_ADDED = 20;
 const MAX_PER_DAY = 50;
 
 const COLUMNS = ['id', 'received', 'status', 'songId', 'title', 'script', 'changes',
@@ -39,6 +40,7 @@ function doPost(e) {
   try {
     return json_(receive_(JSON.parse(e.postData.contents)));
   } catch (error) {
+    console.error('doPost failed: ' + (error && error.stack || error));
     return json_({ ok: false, error: 'Could not read the suggestion.' });
   }
 }
@@ -91,15 +93,73 @@ function receive_(body) {
   }
   const clean = [];
   for (let n = 0; n < changes.length; n++) {
-    const c = changes[n] || {};
-    const fine = Number.isInteger(c.i) && c.i >= 0 &&
-      typeof c.old === 'string' && typeof c.new === 'string' &&
-      c.old.length <= MAX_LINE && c.new.length <= MAX_LINE &&
-      !/[\r\n]/.test(c.old + c.new) && c.old !== c.new;
-    if (!fine) return { ok: false, error: 'One of the changed lines could not be read.' };
-    clean.push({ i: c.i, old: c.old, new: c.new });
+    const c = cleanChange_(changes[n]);
+    if (!c) return { ok: false, error: 'One of the changes could not be read.' };
+    clean.push(c);
   }
 
+  // From here on a failure is ours, not the reader's: a missing Sheet, a permission that
+  // was never granted. Say so plainly, so the admin testing the form can see what broke
+  // instead of a message that blames the suggestion.
+  let id;
+  try {
+    id = store_(props, songId, body, clean);
+  } catch (error) {
+    console.error('store failed: ' + (error && error.stack || error));
+    return { ok: false, error: 'The review queue is not set up correctly (' +
+      String(error && error.message || error).slice(0, 200) + ').' };
+  }
+  if (!id) return { ok: false, error: 'Too many suggestions today. Please try again tomorrow.' };
+
+  try {
+    notify_(id);
+  } catch (error) {
+    // The suggestion is safely in the Sheet; a failed email must not lose it or make the
+    // reader send it twice.
+    console.error('notify failed: ' + (error && error.stack || error));
+    const found = find_(id);
+    if (found) sheet_().getRange(found.row, COL.commit).setValue('EMAIL NOT SENT: ' +
+      String(error && error.message || error).slice(0, 200));
+  }
+  return { ok: true };
+}
+
+/** One change, rebuilt field by field so nothing unexpected is stored. Null if invalid. */
+function cleanChange_(c) {
+  if (!c || !Number.isInteger(c.i) || c.i < -1) return null;
+  const n = c.n === undefined ? 0 : c.n;
+  if (!Number.isInteger(n) || n < 0 || n > 500) return null;
+  const line = function (value) {
+    return typeof value === 'string' && value.length <= MAX_LINE && !/[\r\n\u0000]/.test(value);
+  };
+  const out = { i: c.i };
+  if (n) out.n = n;
+
+  if (Array.isArray(c.add)) {
+    // Add lines after the address. `old: null` anchors on a removed line or the top.
+    if (c.old !== null && !line(c.old)) return null;
+    if (c.add.length < 1 || c.add.length > MAX_ADDED) return null;
+    if (!c.add.every(function (text) { return line(text) && text.trim() !== ''; })) return null;
+    out.old = c.old;
+    out.add = c.add.slice();
+    return out;
+  }
+
+  // Only an insert may address the top anchor: there is no line there to change.
+  if (c.i === -1 && n === 0) return null;
+  if (!line(c.old)) return null;
+  out.old = c.old;
+  if (c.del === true) {
+    out.del = true;
+    return out;
+  }
+  if (!line(c.new) || c.new === c.old || c.new.trim() === '') return null;
+  out.new = c.new;
+  return out;
+}
+
+/** Append the pending row. Returns its id, or null when today's cap is reached. */
+function store_(props, songId, body, clean) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   let id;
@@ -107,9 +167,7 @@ function receive_(body) {
     const today = Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd');
     const counter = 'count:' + today;
     const count = Number(props.getProperty(counter) || 0);
-    if (count >= MAX_PER_DAY) {
-      return { ok: false, error: 'Too many suggestions today. Please try again tomorrow.' };
-    }
+    if (count >= MAX_PER_DAY) return null;
     props.setProperty(counter, String(count + 1));
 
     id = Utilities.getUuid();
@@ -120,9 +178,7 @@ function receive_(body) {
   } finally {
     lock.releaseLock();
   }
-
-  notify_(id);
-  return { ok: true };
+  return id;
 }
 
 function notify_(id) {
@@ -218,7 +274,14 @@ function publish_(songId, script, changes) {
     const key = String(songId);
     const list = doc.songs[key] || (doc.songs[key] = []);
     changes.forEach(function (c) {
-      list.push({ s: script, i: c.i, old: c.old, new: c.new, at: today });
+      const entry = { s: script, i: c.i };
+      if (c.n) entry.n = c.n;
+      entry.old = c.old;
+      if (c.add) entry.add = c.add;
+      else if (c.del) entry.del = true;
+      else entry.new = c.new;
+      entry.at = today;
+      list.push(entry);
     });
 
     const put = UrlFetchApp.fetch(api, {
@@ -257,16 +320,35 @@ function testSetup() {
   if (got.getResponseCode() !== 200) {
     throw new Error('GitHub token cannot read ' + FILE_PATH + ' (HTTP ' + got.getResponseCode() + ').');
   }
-  sheet_();
+  const sheet = sheet_();
   secret_();
+  Logger.log('Queue sheet: ' + sheet.getParent().getUrl());
   const to = props.getProperty('ADMIN_EMAIL') || Session.getEffectiveUser().getEmail();
   MailApp.sendEmail(to, 'Madhurageetam corrections: setup OK',
     'The review queue can read the repository, write to its sheet and email you.');
   Logger.log('Setup OK. Test email sent to ' + to);
 }
 
+/**
+ * The queue's spreadsheet.
+ *
+ * Normally the Sheet this script is bound to. A script created on its own at
+ * script.google.com has no such Sheet, and `getActiveSpreadsheet()` then returns null —
+ * so in that case one is created on first use and remembered in SHEET_ID.
+ */
+function book_() {
+  const props = PropertiesService.getScriptProperties();
+  const saved = props.getProperty('SHEET_ID');
+  if (saved) return SpreadsheetApp.openById(saved);
+  const bound = SpreadsheetApp.getActiveSpreadsheet();
+  if (bound) return bound;
+  const created = SpreadsheetApp.create('Madhurageetam corrections');
+  props.setProperty('SHEET_ID', created.getId());
+  return created;
+}
+
 function sheet_() {
-  const book = SpreadsheetApp.getActiveSpreadsheet();
+  const book = book_();
   let sheet = book.getSheetByName(SHEET_NAME);
   if (!sheet) {
     sheet = book.insertSheet(SHEET_NAME);
@@ -328,9 +410,25 @@ function summary_(row) {
   if (row[COL.note - 1]) html += '<p>Note: ' + esc_(row[COL.note - 1]) + '</p>';
   html += '<table style="border-collapse:collapse"><tr><th ' + cell + '>Line</th><th ' + cell +
     '>Now</th><th ' + cell + '>Suggested</th></tr>';
+  const soft = function (text) { return '<i style="color:#888">' + text + '</i>'; };
   changes.forEach(function (c) {
-    html += '<tr><td ' + cell + '>' + (c.i + 1) + '</td><td ' + cell + '>' + esc_(c.old) +
-      '</td><td ' + cell + '>' + esc_(c.new) + '</td></tr>';
+    // Line numbers count the lines as shipped; "+2" is the second line added after one.
+    const where = (c.i < 0 ? 'top' : String(c.i + 1)) + (c.n ? ' +' + c.n : '');
+    let now, then;
+    if (c.add) {
+      now = soft(c.old === null ? (c.i < 0 && !c.n ? 'at the very top' : 'after a removed line')
+        : 'after: ') + (c.old === null ? '' : esc_(c.old));
+      then = soft('add ' + (c.add.length === 1 ? 'this line' : 'these lines') + ':') + '<br>' +
+        c.add.map(esc_).join('<br>');
+    } else if (c.del) {
+      now = esc_(c.old);
+      then = soft('remove this line');
+    } else {
+      now = esc_(c.old);
+      then = esc_(c.new);
+    }
+    html += '<tr><td ' + cell + '>' + where + '</td><td ' + cell + '>' + now +
+      '</td><td ' + cell + '>' + then + '</td></tr>';
   });
   return html + '</table>';
 }

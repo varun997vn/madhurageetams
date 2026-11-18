@@ -22,11 +22,19 @@ import {
   WrongPasswordError,
   type Manifest,
 } from '../lib/crypto'
-import { applyToRoman, applyToRows, indexCorrections, type Correction } from '../lib/corrections'
+import {
+  applyToRoman,
+  applyToRows,
+  indexCorrections,
+  resolveLines,
+  type Correction,
+} from '../lib/corrections'
 import { decodeSong } from '../lib/scriptRows'
 import {
   ALL_FACETS,
+  ROW_COLUMN,
   type CoreBundle,
+  type EditableLine,
   type FacetName,
   type FacetValueCount,
   type Filters,
@@ -39,6 +47,7 @@ import {
   type QueryRequest,
   type QueryResponse,
   type ResultRow,
+  type ScriptChoice,
   type SiteMeta,
   type SongDetail,
 } from '../lib/types'
@@ -192,11 +201,15 @@ async function shardForSlot(slot: number): Promise<LyricShard | null> {
   return lyricShards.get(name) ?? null
 }
 
-async function lyricsFor(slot: number): Promise<string> {
+/** Roman lyrics exactly as shipped, before any correction. */
+async function shippedLyricsFor(slot: number): Promise<string> {
   const shard = await shardForSlot(slot)
   if (!shard) return ''
-  const lyrics = shard.lyrics[slot - shard.firstSlot] ?? ''
-  return applyToRoman(lyrics, corrections.get(store!.core.ids[slot]!))
+  return shard.lyrics[slot - shard.firstSlot] ?? ''
+}
+
+async function lyricsFor(slot: number): Promise<string> {
+  return applyToRoman(await shippedLyricsFor(slot), corrections.get(store!.core.ids[slot]!))
 }
 
 /**
@@ -297,12 +310,51 @@ async function nativeShardAt(position: number): Promise<NativeShard | null> {
   }
 }
 
-async function nativeFor(id: number): Promise<NativeDoc | null> {
+/** One song's entry in its native shard, exactly as shipped. */
+async function shippedNativeFor(id: number) {
   const position = nativePosition?.get(id)
   if (position === undefined) return null
   const shard = await nativeShardAt(position)
   if (!shard) return null
-  const entry = shard.songs[shard.ids.indexOf(id)]
+  return shard.songs[shard.ids.indexOf(id)] ?? null
+}
+
+/**
+ * The lines of one script as a reader would correct them.
+ *
+ * Addresses are computed here, against the shipped data, because that is what
+ * corrections.json is written against: the main thread only ever sees text that already
+ * has earlier corrections applied, and could not tell a shipped line from an added one.
+ */
+async function editableFor(id: number, script: ScriptChoice): Promise<EditableLine[] | null> {
+  const entries = corrections.get(id)
+  let base: string[]
+  let headings: Set<number> | null = null
+
+  if (script === 'roman') {
+    const slot = store!.slotById.get(id)
+    if (slot === undefined) return null
+    base = (await shippedLyricsFor(slot)).split('\n')
+  } else {
+    const entry = await shippedNativeFor(id)
+    if (!entry) return null
+    const column = ROW_COLUMN[script]
+    base = entry.rows.map((row) => row[column] as string)
+    headings = new Set(entry.rows.flatMap((row, index) => (row[0] === 1 ? [index] : [])))
+  }
+
+  const out: EditableLine[] = []
+  for (const line of resolveLines(base, entries, script)) {
+    if (line.text === null) continue
+    const kind =
+      line.n === 0 && headings?.has(line.i) ? 'heading' : line.text.trim() === '' ? 'blank' : 'line'
+    out.push({ i: line.i, n: line.n, text: line.text, kind })
+  }
+  return out
+}
+
+async function nativeFor(id: number): Promise<NativeDoc | null> {
+  const entry = await shippedNativeFor(id)
   if (!entry) return null
   const slot = store!.slotById.get(id) ?? -1
   const song = decodeSong(entry)
@@ -637,6 +689,11 @@ ctx.onmessage = async (event: MessageEvent<RpcCall>) => {
       case 'chartData': {
         const p = params as { spec: string; filters: Filters }
         result = buildChart(p.spec, p.filters)
+        break
+      }
+      case 'getEditable': {
+        const p = params as { id: number; script: ScriptChoice }
+        result = await editableFor(p.id, p.script)
         break
       }
       case 'suggestToken':
