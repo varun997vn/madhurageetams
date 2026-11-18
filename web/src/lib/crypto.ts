@@ -112,6 +112,20 @@ export async function keyCheckValue(keyBytes: Uint8Array, salt: Uint8Array): Pro
   return bytesToBase64(new Uint8Array(digest).slice(0, 8))
 }
 
+/**
+ * Proof-of-unlock for the suggestion endpoint: SHA-256("mg-suggest-v1" || key), hex.
+ *
+ * One-way, so the intake script holds something that cannot decrypt the corpus. Mirrors
+ * build/tools/suggest_token.py, which is how the admin obtains the expected value.
+ */
+export async function suggestToken(keyBytes: Uint8Array): Promise<string> {
+  const label = new TextEncoder().encode('mg-suggest-v1')
+  const input = new Uint8Array(label.length + keyBytes.length)
+  input.set(label, 0)
+  input.set(keyBytes, label.length)
+  return toHex(await crypto.subtle.digest('SHA-256', input as BufferSource))
+}
+
 export async function importAesKey(keyBytes: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', keyBytes as BufferSource, 'AES-GCM', false, ['decrypt'])
 }

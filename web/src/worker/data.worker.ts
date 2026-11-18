@@ -18,9 +18,11 @@ import {
   importAesKey,
   keyCheckValue,
   openShard,
+  suggestToken,
   WrongPasswordError,
   type Manifest,
 } from '../lib/crypto'
+import { applyToRoman, applyToRows, indexCorrections, type Correction } from '../lib/corrections'
 import { decodeSong } from '../lib/scriptRows'
 import {
   ALL_FACETS,
@@ -58,6 +60,10 @@ const nativeShards = new Map<string, NativeShard>()
 let nativeIndex: NativeIndex | null = null
 let nativePosition: Map<number, number> | null = null
 let prefetching = false
+/** Accepted reader corrections by song id; see lib/corrections.ts. */
+let corrections = new Map<number, Correction[]>()
+/** Proof-of-unlock sent with a suggestion. Derived from the key, never the key itself. */
+let unlockToken = ''
 
 /** Printed-script codes as stored in the native index. */
 const PRINTED_SCRIPTS: PrintedScript[] = [null, 'devanagari', 'tamil', 'mixed']
@@ -115,7 +121,7 @@ async function loadCore(): Promise<void> {
   store = new Store(core)
   engine = new SearchEngine(store)
   engine.setSynonyms((siteMeta as SiteMeta).synonyms ?? {})
-  await ensureNativeIndex()
+  await Promise.all([ensureNativeIndex(), loadCorrections()])
   emit({ kind: 'progress', phase: 'core', loaded: 1, total: 1 })
   emit({ kind: 'ready' })
   void prefetchLyrics()
@@ -189,7 +195,27 @@ async function shardForSlot(slot: number): Promise<LyricShard | null> {
 async function lyricsFor(slot: number): Promise<string> {
   const shard = await shardForSlot(slot)
   if (!shard) return ''
-  return shard.lyrics[slot - shard.firstSlot] ?? ''
+  const lyrics = shard.lyrics[slot - shard.firstSlot] ?? ''
+  return applyToRoman(lyrics, corrections.get(store!.core.ids[slot]!))
+}
+
+/**
+ * Accepted corrections, fetched once per unlock.
+ *
+ * `no-cache` because this file changes without `manifest.revision` changing: an accepted
+ * fix is a commit to this one file, not a rebuild. Failure is tolerated — without it the
+ * site simply shows the corpus as built.
+ */
+async function loadCorrections(): Promise<void> {
+  try {
+    const response = await fetch(new URL('data/corrections.json', baseUrl()).href, {
+      cache: 'no-cache',
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    corrections = indexCorrections(await response.json())
+  } catch {
+    corrections = new Map()
+  }
 }
 
 /* ----------------------------------------------------------- native scripts --------
@@ -279,7 +305,8 @@ async function nativeFor(id: number): Promise<NativeDoc | null> {
   const entry = shard.songs[shard.ids.indexOf(id)]
   if (!entry) return null
   const slot = store!.slotById.get(id) ?? -1
-  return { id, slot, ...decodeSong(entry) }
+  const song = decodeSong(entry)
+  return { id, slot, ...song, rows: applyToRows(song.rows, corrections.get(id)) }
 }
 
 async function ensureIndex(): Promise<boolean> {
@@ -533,6 +560,7 @@ async function unlock(password: string) {
   if ((await keyCheckValue(keyBytes, salt)) !== m.kcv) throw new WrongPasswordError()
 
   cryptoKey = await importAesKey(keyBytes)
+  unlockToken = await suggestToken(keyBytes)
   await loadCore()
   return {
     ok: true as const,
@@ -552,6 +580,7 @@ async function resume(encoded: string) {
     return { ok: false as const, reason: 'cached key no longer valid' }
   }
   cryptoKey = await importAesKey(keyBytes)
+  unlockToken = await suggestToken(keyBytes)
   await loadCore()
   return { ok: true as const, stats: stats(), meta: siteMeta as SiteMeta }
 }
@@ -610,8 +639,13 @@ ctx.onmessage = async (event: MessageEvent<RpcCall>) => {
         result = buildChart(p.spec, p.filters)
         break
       }
+      case 'suggestToken':
+        result = { token: unlockToken }
+        break
       case 'lock':
         cryptoKey = null
+        unlockToken = ''
+        corrections = new Map()
         store = null
         engine = null
         lyricShards.clear()
