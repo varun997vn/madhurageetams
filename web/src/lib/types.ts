@@ -119,6 +119,16 @@ export interface EditableLine {
   kind: 'line' | 'heading' | 'blank'
 }
 
+/** One script of a song, as offered for correction. */
+export interface Editable {
+  lines: EditableLine[]
+  /**
+   * How many accepted corrections this song had when these lines were read. Sent with a
+   * suggestion, so the reviewer's side can tell what was accepted in the meantime.
+   */
+  base: number
+}
+
 export interface NativeShard {
   version: number
   name: string

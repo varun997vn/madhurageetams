@@ -82,6 +82,23 @@ export function indexCorrections(doc: unknown): Map<number, Correction[]> {
   return out
 }
 
+/**
+ * How many entries each song has in the file, well-formed or not.
+ *
+ * This is the "base" a suggestion is sent with. The review queue counts the same way,
+ * straight off the file, so everything past that count is what was accepted since.
+ */
+export function countCorrections(doc: unknown): Map<number, number> {
+  const out = new Map<number, number>()
+  const songs = (doc as CorrectionsDoc | null)?.songs
+  if (!songs || typeof songs !== 'object') return out
+  for (const [key, entries] of Object.entries(songs)) {
+    const id = Number(key)
+    if (Number.isInteger(id) && Array.isArray(entries)) out.set(id, entries.length)
+  }
+  return out
+}
+
 interface Slot {
   text: string | null
 }

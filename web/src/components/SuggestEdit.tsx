@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import suggestConfig from '../data/suggest.json'
-import type { Correction } from '../lib/corrections'
 import { langTag } from '../lib/scriptRows'
+import { buildChanges, draftsFromText, textOf } from '../lib/suggestDrafts'
 import { getWorker } from '../lib/workerClient'
-import { SCRIPT_LABELS, type EditableLine, type ScriptChoice, type SongDetail } from '../lib/types'
+import { SCRIPT_LABELS, type Editable, type ScriptChoice, type SongDetail } from '../lib/types'
 
 /**
  * Where suggestions are sent: the Apps Script web app in `suggestions/`.
@@ -57,67 +57,7 @@ export function contactProblem(name: string, code: string, phone: string): strin
   return ''
 }
 
-/** One change as sent for review: a Correction without the script and date. */
-export type Change = Omit<Correction, 's' | 'at'>
-
-/** A row of the editor: a line that exists (`source`), or one the reader is adding. */
-export interface Draft {
-  key: number
-  source?: EditableLine
-  value: string
-  removed: boolean
-}
-
-export function toDrafts(lines: EditableLine[]): Draft[] {
-  return lines.map((source, key) => ({ key, source, value: source.text, removed: false }))
-}
-
-/**
- * Turn the edited list into changes.
- *
- * Order matters, because each change is applied against the result of the ones before
- * it: changed and removed lines first, while every address still means what the reader
- * saw, then added lines from the bottom up, so adding lines never renumbers an address
- * that a later change in the same batch still needs.
- */
-export function buildChanges(drafts: Draft[]): Change[] {
-  const edits: Change[] = []
-  const inserts: Change[] = []
-  let anchor: { i: number; n: number; old: string | null } = { i: -1, n: 0, old: null }
-  let pending: string[] = []
-
-  const flush = () => {
-    if (pending.length === 0) return
-    inserts.push({ i: anchor.i, ...(anchor.n ? { n: anchor.n } : {}), old: anchor.old, add: pending })
-    pending = []
-  }
-
-  for (const draft of drafts) {
-    const source = draft.source
-    if (!source) {
-      const text = draft.value.trim()
-      if (text) pending.push(text)
-      continue
-    }
-    flush()
-    const address = { i: source.i, ...(source.n ? { n: source.n } : {}) }
-    const value = draft.value.trimEnd()
-    if (source.kind !== 'line' || (!draft.removed && value === source.text)) {
-      anchor = { i: source.i, n: source.n, old: source.text }
-    } else if (draft.removed || value.trim() === '') {
-      // Clearing a line means the same as removing it.
-      edits.push({ ...address, old: source.text, del: true })
-      anchor = { i: source.i, n: source.n, old: null }
-    } else {
-      edits.push({ ...address, old: source.text, new: value })
-      anchor = { i: source.i, n: source.n, old: value }
-    }
-  }
-  flush()
-
-  inserts.sort((a, b) => b.i - a.i || (b.n ?? 0) - (a.n ?? 0))
-  return [...edits, ...inserts]
-}
+export { buildChanges, toDrafts, type Change, type Draft } from '../lib/suggestDrafts'
 
 type Status = 'editing' | 'sending' | 'sent' | 'error'
 
@@ -130,7 +70,8 @@ export function SuggestEdit({
   script: ScriptChoice
   onClose: () => void
 }) {
-  const [drafts, setDrafts] = useState<Draft[] | null>(null)
+  const [editable, setEditable] = useState<Editable | null>(null)
+  const [text, setText] = useState('')
   const [unavailable, setUnavailable] = useState(false)
   const [name, setName] = useState('')
   const [codeChoice, setCodeChoice] = useState('')
@@ -141,23 +82,27 @@ export function SuggestEdit({
   const [website, setWebsite] = useState('')
   const [status, setStatus] = useState<Status>('editing')
   const [error, setError] = useState('')
-  const nextKey = useRef(1_000_000)
-  const focusKey = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
     void getWorker()
       .call('getEditable', { id: song.id, script })
-      .then((lines) => {
+      .then((loaded) => {
         if (cancelled) return
-        if (lines) setDrafts(toDrafts(lines))
-        else setUnavailable(true)
+        if (!loaded) return setUnavailable(true)
+        setEditable(loaded)
+        setText(textOf(loaded.lines))
       })
       .catch(() => !cancelled && setUnavailable(true))
     return () => {
       cancelled = true
     }
   }, [song.id, script])
+
+  const { drafts, ignored } = useMemo(
+    () => draftsFromText(editable?.lines ?? [], text),
+    [editable, text],
+  )
 
   if (unavailable) {
     return (
@@ -170,7 +115,7 @@ export function SuggestEdit({
     )
   }
 
-  if (!drafts) {
+  if (!editable) {
     return (
       <div className="suggest">
         <span className="spinner" aria-hidden="true" /> Loading {SCRIPT_LABELS[script]}…
@@ -205,19 +150,6 @@ export function SuggestEdit({
   // Shown only once there is something to send, so the form does not open on an error.
   const contact = changes.length > 0 ? contactProblem(name, countryCode, phone) : ''
 
-  const update = (key: number, patch: Partial<Draft>) =>
-    setDrafts(drafts.map((d) => (d.key === key ? { ...d, ...patch } : d)))
-
-  /** Put an empty new line directly after the given row, or first when `after` is null. */
-  const addAfter = (after: number | null) => {
-    const key = nextKey.current++
-    focusKey.current = key
-    const fresh: Draft = { key, value: '', removed: false }
-    if (after === null) return setDrafts([fresh, ...drafts])
-    const at = drafts.findIndex((d) => d.key === after)
-    setDrafts([...drafts.slice(0, at + 1), fresh, ...drafts.slice(at + 1)])
-  }
-
   const submit = async () => {
     setStatus('sending')
     setError('')
@@ -232,6 +164,7 @@ export function SuggestEdit({
           title: song.title,
           script,
           changes,
+          base: editable.base,
           name: name.trim(),
           countryCode,
           phone: phone.trim(),
@@ -255,89 +188,67 @@ export function SuggestEdit({
   }
 
   const busy = status === 'sending'
+  const original = textOf(editable.lines)
+  /** The lines that differ from what the reader started with, in reading order. */
+  const changed = drafts.filter((draft) => {
+    const source = draft.source
+    if (!source) return draft.value.trim() !== ''
+    return source.kind === 'line' && (draft.removed || draft.value.trimEnd() !== source.text)
+  })
 
   return (
     <div className="suggest">
       <p className="suggest-intro">
-        Edit, add or remove lines in <strong>{SCRIPT_LABELS[script]}</strong>, then send.
-        Only your changes are sent, and nothing changes on the site until they are
-        reviewed. To correct another script, pick it in the Language menu first.
+        Correct the <strong>{SCRIPT_LABELS[script]}</strong> lyrics below as you would in any
+        text box: fix words, delete lines, or type new ones. Only your changes are sent, and
+        nothing changes on the site until they are reviewed. To correct another script, pick
+        it in the Language menu first.
       </p>
 
-      <div className="suggest-lines" data-script={script} lang={langTag(script, song.language)}>
-        <button className="suggest-add" disabled={busy} onClick={() => addAfter(null)}>
-          + Add a line at the top
-        </button>
+      <textarea
+        className="suggest-text"
+        data-script={script}
+        lang={langTag(script, song.language)}
+        aria-label={`${SCRIPT_LABELS[script]} lyrics`}
+        value={text}
+        rows={Math.min(Math.max(editable.lines.length + 2, 8), 60)}
+        disabled={busy}
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        onChange={(event) => setText(event.target.value)}
+      />
 
-        {drafts.map((draft) => {
-          const source = draft.source
-          if (source?.kind === 'heading') {
-            return <div key={draft.key} className="lyric-head">{source.text}</div>
-          }
-          if (source?.kind === 'blank') {
-            return <div key={draft.key} className="suggest-gap" aria-hidden="true" />
-          }
-          const changed = !source || draft.removed || draft.value.trimEnd() !== source.text
-          const state = !source ? 'is-new' : draft.removed ? 'is-removed' : changed ? 'is-changed' : ''
-          return (
-            <div key={draft.key} className={`suggest-line ${state}`}>
-              <input
-                type="text"
-                value={draft.value}
-                disabled={draft.removed || busy}
-                placeholder={source ? undefined : 'New line'}
-                aria-label={source ? 'Lyric line' : 'New lyric line'}
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                ref={(element) => {
-                  if (element && focusKey.current === draft.key) {
-                    focusKey.current = null
-                    element.focus()
-                  }
-                }}
-                onChange={(event) => update(draft.key, { value: event.target.value })}
-              />
-              {source && changed ? (
-                <button
-                  className="btn btn-ghost btn-sm"
-                  disabled={busy}
-                  title="Put this line back as it was"
-                  onClick={() => update(draft.key, { value: source.text, removed: false })}
-                >
-                  Undo
-                </button>
-              ) : null}
-              {!draft.removed ? (
-                <>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    disabled={busy}
-                    title="Add a line below this one"
-                    aria-label="Add a line below this one"
-                    onClick={() => addAfter(draft.key)}
-                  >
-                    +
-                  </button>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    disabled={busy}
-                    title={source ? 'Remove this line' : 'Discard this new line'}
-                    aria-label={source ? 'Remove this line' : 'Discard this new line'}
-                    onClick={() =>
-                      source
-                        ? update(draft.key, { removed: true })
-                        : setDrafts(drafts.filter((d) => d.key !== draft.key))
-                    }
-                  >
-                    ✕
-                  </button>
-                </>
-              ) : null}
-            </div>
-          )
-        })}
-      </div>
+      {ignored ? (
+        <p className="script-note">Headings and blank lines stay as they are.</p>
+      ) : null}
+
+      {changed.length > 0 ? (
+        <div className="suggest-changes">
+          <div className="suggest-changes-head">
+            <span>Your changes</span>
+            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setText(original)}>
+              Reset
+            </button>
+          </div>
+          <ul data-script={script} lang={langTag(script, song.language)}>
+            {changed.map((draft) => {
+              const source = draft.source
+              if (!source) {
+                return <li key={draft.key}><b>Added</b> <ins>{draft.value.trim()}</ins></li>
+              }
+              if (draft.removed || draft.value.trim() === '') {
+                return <li key={draft.key}><b>Removed</b> <del>{source.text}</del></li>
+              }
+              return (
+                <li key={draft.key}>
+                  <b>Changed</b> <del>{source.text}</del> <ins>{draft.value.trimEnd()}</ins>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="suggest-meta">
         <label>
