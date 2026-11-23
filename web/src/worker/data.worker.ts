@@ -25,6 +25,7 @@ import {
 import {
   applyToRoman,
   applyToRows,
+  countCorrections,
   indexCorrections,
   resolveLines,
   type Correction,
@@ -34,6 +35,7 @@ import {
   ALL_FACETS,
   ROW_COLUMN,
   type CoreBundle,
+  type Editable,
   type EditableLine,
   type FacetName,
   type FacetValueCount,
@@ -71,6 +73,8 @@ let nativePosition: Map<number, number> | null = null
 let prefetching = false
 /** Accepted reader corrections by song id; see lib/corrections.ts. */
 let corrections = new Map<number, Correction[]>()
+/** Entries per song in corrections.json as loaded: the base a suggestion is sent with. */
+let correctionCounts = new Map<number, number>()
 /** Proof-of-unlock sent with a suggestion. Derived from the key, never the key itself. */
 let unlockToken = ''
 
@@ -225,9 +229,12 @@ async function loadCorrections(): Promise<void> {
       cache: 'no-cache',
     })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    corrections = indexCorrections(await response.json())
+    const doc: unknown = await response.json()
+    corrections = indexCorrections(doc)
+    correctionCounts = countCorrections(doc)
   } catch {
     corrections = new Map()
+    correctionCounts = new Map()
   }
 }
 
@@ -326,7 +333,7 @@ async function shippedNativeFor(id: number) {
  * corrections.json is written against: the main thread only ever sees text that already
  * has earlier corrections applied, and could not tell a shipped line from an added one.
  */
-async function editableFor(id: number, script: ScriptChoice): Promise<EditableLine[] | null> {
+async function editableFor(id: number, script: ScriptChoice): Promise<Editable | null> {
   const entries = corrections.get(id)
   let base: string[]
   let headings: Set<number> | null = null
@@ -350,7 +357,7 @@ async function editableFor(id: number, script: ScriptChoice): Promise<EditableLi
       line.n === 0 && headings?.has(line.i) ? 'heading' : line.text.trim() === '' ? 'blank' : 'line'
     out.push({ i: line.i, n: line.n, text: line.text, kind })
   }
-  return out
+  return { lines: out, base: correctionCounts.get(id) ?? 0 }
 }
 
 async function nativeFor(id: number): Promise<NativeDoc | null> {
@@ -703,6 +710,7 @@ ctx.onmessage = async (event: MessageEvent<RpcCall>) => {
         cryptoKey = null
         unlockToken = ''
         corrections = new Map()
+        correctionCounts = new Map()
         store = null
         engine = null
         lyricShards.clear()

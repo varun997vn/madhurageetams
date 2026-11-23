@@ -8,7 +8,7 @@
 
 import type {
   CorpusStats,
-  EditableLine,
+  Editable,
   Filters,
   NativeDoc,
   QueryRequest,
@@ -51,7 +51,7 @@ export interface WorkerResponses {
   getSongs: SongDetail[]
   getNative: NativeDoc[]
   suggestToken: { token: string }
-  getEditable: EditableLine[] | null
+  getEditable: Editable | null
   facetValues: { index: number; label: string; count: number }[]
   chartData: ChartData
   lock: { ok: true }
